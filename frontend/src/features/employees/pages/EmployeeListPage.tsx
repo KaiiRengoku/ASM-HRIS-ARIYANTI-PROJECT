@@ -197,7 +197,7 @@ export default function EmployeeListPage() {
                   <p className="text-sm font-medium">Akun Login (otomatis dibuat, login pakai NIK + kata sandi)</p>
                   <div className="space-y-2">
                     <Label>Kata Sandi *</Label>
-                    <Input type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="Minimal 8 karakter" required={!editId} />
+                    <Input type="password" autoComplete="new-password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="Minimal 8 karakter" required={!editId} />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
@@ -246,6 +246,7 @@ export default function EmployeeListPage() {
           <Input
             placeholder="Cari berdasarkan NIK, nama, NIP, NIDN, atau email..."
             value={search}
+            autoComplete="off"
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="max-w-md"
           />
@@ -342,7 +343,7 @@ export default function EmployeeListPage() {
             </div>
             <div className="space-y-2">
               <Label>Kata Sandi Baru (kosongkan bila tidak diubah)</Label>
-              <Input type="password" value={accountForm.password} onChange={(e) => setAccountForm(f => ({ ...f, password: e.target.value }))} placeholder="Minimal 8 karakter" />
+              <Input type="password" autoComplete="new-password" value={accountForm.password} onChange={(e) => setAccountForm(f => ({ ...f, password: e.target.value }))} placeholder="Minimal 8 karakter" />
             </div>
             <div className="space-y-2">
               <Label>Jabatan (opsional — kosongkan untuk ikut role)</Label>
