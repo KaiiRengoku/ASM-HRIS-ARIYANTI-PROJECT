@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Link } from 'react-router-dom';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -34,18 +35,23 @@ export default function LeaveListPage() {
     const [createFile, setCreateFile] = useState<File | null>(null);
     const [adjustForm, setAdjustForm] = useState<any>({ employee_id: '', leave_type_id: '', amount: '', reason: '' });
     const queryClient = useQueryClient();
-    const { hasRole } = useAuthStore();
+    const { hasRole, user } = useAuthStore();
     const isHrd = hasRole('HRD');
     const canApprove = hasRole('HRD') || hasRole('KABAG');
 
+    const debouncedSearch = useDebounce(search);
+    const normalizedStatus = statusFilter === 'all' ? '' : statusFilter;
+
     const { data, isLoading, error } = useQuery({
-        queryKey: ['leaves', page, search, statusFilter],
-        queryFn: () => fetchLeaves({ page, search: search || undefined, status: statusFilter || undefined }),
+        queryKey: ['leaves', page, debouncedSearch, normalizedStatus],
+        queryFn: () => fetchLeaves({ page, search: debouncedSearch || undefined, status: normalizedStatus || undefined }),
+        placeholderData: keepPreviousData,
     });
 
     const { data: employees } = useQuery({
         queryKey: ['employees-list'],
         queryFn: async () => (await api.get('/employees?per_page=100')).data.data,
+        enabled: isHrd,
     });
 
     const { data: leaveTypes } = useQuery({
@@ -114,7 +120,6 @@ export default function LeaveListPage() {
         ? Math.floor((new Date(createForm.start_date).getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000)
         : null;
 
-    if (isLoading) return <div className="p-6">Memuat data cuti...</div>;
     if (error) return <div className="p-6 text-destructive">Gagal memuat data.</div>;
 
     const leaves = data?.data || [];
@@ -175,6 +180,7 @@ export default function LeaveListPage() {
                         <DialogContent>
                             <DialogHeader><DialogTitle>Ajukan Cuti / Izin</DialogTitle></DialogHeader>
                             <form onSubmit={submitCreate} className="space-y-4">
+                                {isHrd ? (
                                 <div className="space-y-2">
                                     <Label>Pegawai</Label>
                                     <Select value={createForm.employee_id} onValueChange={(v) => setCreateForm((f: any) => ({ ...f, employee_id: v }))}>
@@ -184,6 +190,12 @@ export default function LeaveListPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                ) : (
+                                <div className="space-y-2">
+                                    <Label>Pegawai</Label>
+                                    <p className="text-sm font-medium">{user?.name || '-'}</p>
+                                </div>
+                                )}
                                 <div className="space-y-2">
                                     <Label>Jenis Cuti</Label>
                                     <Select value={createForm.leave_type_id} onValueChange={(v) => setCreateForm((f: any) => ({ ...f, leave_type_id: v }))}>
@@ -245,11 +257,11 @@ export default function LeaveListPage() {
                     <CardTitle className="text-sm font-medium">Filter</CardTitle>
                 </CardHeader>
                 <CardContent className="flex gap-4 flex-wrap">
-                    <Input placeholder="Cari pegawai..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="max-w-sm" />
-                    <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                    <Input placeholder="Cari pegawai..." value={search} autoComplete="off" onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="max-w-sm" />
+                    <Select value={statusFilter || 'all'} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
                         <SelectTrigger className="w-40"><SelectValue placeholder="Semua status" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Semua</SelectItem>
+                            <SelectItem value="all">Semua</SelectItem>
                             <SelectItem value="Pending">Menunggu</SelectItem>
                             <SelectItem value="Disetujui Kepala Bagian">Disetujui Kabag</SelectItem>
                             <SelectItem value="Disetujui HRD">Disetujui HRD</SelectItem>
@@ -275,7 +287,11 @@ export default function LeaveListPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {leaves.length === 0 ? (
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center text-muted-foreground">Memuat data cuti...</TableCell>
+                                </TableRow>
+                            ) : leaves.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center text-muted-foreground">Belum ada pengajuan</TableCell>
                                 </TableRow>

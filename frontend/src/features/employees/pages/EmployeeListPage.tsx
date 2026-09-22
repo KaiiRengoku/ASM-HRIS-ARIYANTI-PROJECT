@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
@@ -32,9 +33,12 @@ export default function EmployeeListPage() {
   const { hasRole } = useAuthStore();
   const isHrd = hasRole('HRD');
 
+  const debouncedSearch = useDebounce(search);
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['employees', page, search],
-    queryFn: () => getEmployees({ page, search: search || undefined }),
+    queryKey: ['employees', page, debouncedSearch],
+    queryFn: () => getEmployees({ page, search: debouncedSearch || undefined }),
+    placeholderData: keepPreviousData,
   });
 
   const { data: roles } = useQuery({
@@ -111,7 +115,6 @@ export default function EmployeeListPage() {
     setAccountOpen(true);
   };
 
-  if (isLoading) return <div className="p-6">Memuat data pegawai...</div>;
   if (error) return <div className="p-6 text-destructive">Gagal memuat data.</div>;
 
   const employees = data?.data || [];
@@ -269,7 +272,11 @@ export default function EmployeeListPage() {
                 </tr>
               </thead>
               <tbody>
-                {employees.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground">Memuat data pegawai...</td>
+                  </tr>
+                ) : employees.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-muted-foreground">Belum ada data pegawai</td>
                   </tr>

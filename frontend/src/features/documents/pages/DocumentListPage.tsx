@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDebounce } from '@/hooks/useDebounce';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,9 +37,12 @@ export default function DocumentListPage() {
     const queryClient = useQueryClient();
 
     const [filterEmployeeId, setFilterEmployeeId] = useState('');
+    const debouncedSearch = useDebounce(search);
+
     const { data, isLoading, error } = useQuery({
-        queryKey: ['documents', page, search, filterEmployeeId],
-        queryFn: () => fetchDocuments({ page, search: search || undefined, employee_id: filterEmployeeId ? Number(filterEmployeeId) : undefined }),
+        queryKey: ['documents', page, debouncedSearch, filterEmployeeId],
+        queryFn: () => fetchDocuments({ page, search: debouncedSearch || undefined, employee_id: filterEmployeeId ? Number(filterEmployeeId) : undefined }),
+        placeholderData: keepPreviousData,
     });
 
     const downloadDocument = async (doc: any) => {
@@ -92,7 +96,6 @@ export default function DocumentListPage() {
         uploadMutation.mutate(formData);
     };
 
-    if (isLoading) return <div className="p-6">Memuat dokumen...</div>;
     if (error) return <div className="p-6 text-destructive">Gagal memuat dokumen.</div>;
 
     const documents = data?.data || [];
@@ -172,6 +175,7 @@ export default function DocumentListPage() {
                     <Input
                         placeholder="Cari berdasarkan nama pegawai atau NIK..."
                         value={search}
+                        autoComplete="off"
                         onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                         className="max-w-md"
                     />
@@ -201,7 +205,11 @@ export default function DocumentListPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {documents.length === 0 ? (
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center text-muted-foreground">Memuat dokumen...</TableCell>
+                                </TableRow>
+                            ) : documents.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center text-muted-foreground">Belum ada dokumen</TableCell>
                                 </TableRow>

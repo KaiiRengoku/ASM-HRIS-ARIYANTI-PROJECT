@@ -48,7 +48,7 @@ const submitLeave = async (data: any) => {
 export default function LeaveFormPage() {
     const navigate = useNavigate();
     const [file, setFile] = useState<File | null>(null);
-    const { hasRole } = useAuthStore();
+    const { hasRole, user } = useAuthStore();
     const isHrd = hasRole('HRD');
 
     const { data: employees, isLoading: loadingEmployees } = useQuery({
@@ -97,7 +97,7 @@ export default function LeaveFormPage() {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                        {isHrd && (
+                        {isHrd ? (
                         <div>
                             <Label>Pegawai</Label>
                             <Select onValueChange={(v) => setValue('employee_id', v)}>
@@ -111,6 +111,11 @@ export default function LeaveFormPage() {
                                 </SelectContent>
                             </Select>
                             {errors.employee_id && <p className="text-sm text-destructive">{errors.employee_id.message}</p>}
+                        </div>
+                        ) : (
+                        <div>
+                            <Label>Pegawai</Label>
+                            <p className="text-sm font-medium">{user?.name || '-'}</p>
                         </div>
                         )}
                         <div>
