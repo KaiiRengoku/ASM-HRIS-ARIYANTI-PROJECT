@@ -126,7 +126,7 @@ class LeaveController extends Controller
             return response()->json(['success' => false, 'message' => 'Alasan keadaan darurat wajib diisi.'], 400);
         }
 
-        $emp = \App\Models\Employee::find($request->employee_id);
+        $emp = \App\Models\Employee::find($request->employee_id ?? $request->user()->employee_id);
         $totalDays = \App\Services\WorkingDayService::count($request->start_date, $request->end_date, $emp?->organizational_unit_id);
         if ($totalDays < 1) return response()->json(['success' => false, 'message' => 'Total hari kerja 0. Rentang hanya berisi akhir pekan/libur.'], 400);
 

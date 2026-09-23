@@ -28,9 +28,10 @@ public function exportEmployees(Request $request)
 {
     $employees = Employee::with(['position', 'organizationalUnit'])->get();
 
-    $csv = "NIK,Nama,Email,Jabatan,Unit,Status,Telepon,Tanggal Masuk\n";
+    $fh = fopen('php://temp', 'r+');
+    fputcsv($fh, ['NIK', 'Nama', 'Email', 'Jabatan', 'Unit', 'Status', 'Telepon', 'Tanggal Masuk']);
     foreach ($employees as $emp) {
-        $csv .= implode(',', [
+        fputcsv($fh, [
             $emp->nik,
             $emp->nama_lengkap,
             $emp->email,
@@ -39,8 +40,11 @@ public function exportEmployees(Request $request)
             $emp->status_kepegawaian ?? '',
             $emp->nomor_hp ?? '',
             $emp->tanggal_masuk_kerja ?? '',
-        ]) . "\n";
+        ]);
     }
+    rewind($fh);
+    $csv = stream_get_contents($fh);
+    fclose($fh);
 
     $this->audit($request, 'reports/employees/export', Employee::class, 0);
 

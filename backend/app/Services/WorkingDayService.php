@@ -13,7 +13,11 @@ class WorkingDayService
         $holidays = Holiday::where('is_active', true)->whereBetween('date', [$start, $end])->pluck('date')->map(fn ($d) => Carbon::parse($d)->toDateString())->all();
         $sched = WorkSchedule::where('is_active', true)->where(function ($q) use ($unitId) {
             $q->whereNull('organizational_unit_id'); if ($unitId) $q->orWhere('organizational_unit_id', $unitId);
-        })->get()->keyBy('day_of_week');
+        })->where(function ($q) use ($start, $end) {
+            $q->whereNull('effective_from')->orWhere('effective_from', '<=', $end);
+        })->where(function ($q) use ($start, $end) {
+            $q->whereNull('effective_until')->orWhere('effective_until', '>=', $start);
+        })->orderByRaw('organizational_unit_id IS NULL')->get()->keyBy('day_of_week');
         $n = 0; $d = Carbon::parse($start); $e = Carbon::parse($end);
         while ($d->lte($e)) {
             $dow = $d->dayOfWeekIso;

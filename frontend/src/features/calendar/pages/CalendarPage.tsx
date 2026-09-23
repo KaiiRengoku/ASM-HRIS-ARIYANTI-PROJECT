@@ -47,7 +47,7 @@ export default function CalendarPage() {
     const monthStart = new Date();
     monthStart.setDate(1);
     const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
-    const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+    const toISODate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const [viewFrom, setViewFrom] = useState(toISODate(monthStart));
     const [viewTo, setViewTo] = useState(toISODate(monthEnd));
     const [viewUnitId, setViewUnitId] = useState('');
