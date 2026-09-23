@@ -7,6 +7,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\CalendarViewController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LeaveBalanceController;
 use App\Http\Controllers\WorkScheduleController;
@@ -86,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::get('leave-types', [LeaveTypeController::class, 'index']);
     Route::get('holidays', [CalendarController::class, 'index']);
+    Route::get('calendar-view', [CalendarViewController::class, 'index']);
     Route::get('work-schedules', [WorkScheduleController::class, 'index']);
     Route::get('leave-balances/employee/{employeeId}', [LeaveBalanceController::class, 'byEmployee']);
     Route::get('positions', function () {
