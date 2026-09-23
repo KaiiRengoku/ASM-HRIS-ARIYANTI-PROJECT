@@ -35,26 +35,64 @@ public function exportEmployees(Request $request)
 
 public function exportLeaves(Request $request)
 {
-    $leaves = LeaveRequest::with(['employee', 'leaveType'])
-        ->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()])
-        ->get();
+    $leaves = $this->leaveQuery($request)->get();
 
-    $csv = "Pegawai,Jenis,Tanggal Mulai,Tanggal Selesai,Total Hari,Status\n";
+    $fh = fopen('php://temp', 'r+');
+    fputcsv($fh, ['Pegawai', 'Jenis', 'Tanggal Mulai', 'Tanggal Selesai', 'Total Hari', 'Status']);
     foreach ($leaves as $l) {
-        $csv .= implode(',', [
+        fputcsv($fh, [
             $l->employee->nama_lengkap ?? '',
             $l->leaveType->name ?? '',
             $l->start_date,
             $l->end_date,
             $l->total_days,
             $l->status,
-        ]) . "\n";
+        ]);
     }
+    rewind($fh);
+    $csv = stream_get_contents($fh);
+    fclose($fh);
 
     return Response::make($csv, 200, [
         'Content-Type' => 'text/csv',
         'Content-Disposition' => 'attachment; filename="cuti_' . date('Y-m-d') . '.csv"',
     ]);
+}
+
+private function leaveQuery(Request $request)
+{
+    $request->validate([
+        'status' => 'nullable|string',
+        'leave_type_id' => 'nullable|exists:leave_types,id',
+        'employee_id' => 'nullable|exists:employees,id',
+        'from' => 'nullable|date',
+        'to' => 'nullable|date|after_or_equal:from',
+    ], [
+        'status.string' => 'Status harus berupa teks.',
+        'leave_type_id.exists' => 'Jenis cuti tidak valid.',
+        'employee_id.exists' => 'Pegawai tidak valid.',
+        'from.date' => 'Tanggal mulai tidak valid.',
+        'to.date' => 'Tanggal selesai tidak valid.',
+        'to.after_or_equal' => 'Tanggal selesai harus setelah atau sama dengan tanggal mulai.',
+    ]);
+
+    $query = LeaveRequest::with(['employee', 'leaveType']);
+
+    if ($request->filled('from') || $request->filled('to')) {
+        if ($request->filled('from')) {
+            $query->where('created_at', '>=', \Carbon\Carbon::parse($request->from)->startOfDay());
+        }
+        if ($request->filled('to')) {
+            $query->where('created_at', '<=', \Carbon\Carbon::parse($request->to)->endOfDay());
+        }
+    } else {
+        $query->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()]);
+    }
+
+    return $query
+        ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+        ->when($request->filled('leave_type_id'), fn ($q) => $q->where('leave_type_id', $request->leave_type_id))
+        ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->employee_id));
 }
 
 public function exportEmployeesExcel(Request $request)
@@ -73,9 +111,7 @@ public function exportEmployeesExcel(Request $request)
 
 public function exportLeavesExcel(Request $request)
 {
-    $leaves = LeaveRequest::with(['employee', 'leaveType'])
-        ->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()])
-        ->get();
+    $leaves = $this->leaveQuery($request)->get();
     $rows = '';
     foreach ($leaves as $l) {
         $rows .= '<tr><td>' . e($l->employee->nama_lengkap ?? '') . '</td><td>' . e($l->leaveType->name ?? '') . '</td><td>' . e($l->start_date) . '</td><td>' . e($l->end_date) . '</td><td>' . e($l->total_days) . '</td><td>' . e($l->status) . '</td></tr>';
@@ -132,9 +168,7 @@ public function exportEmployeesPdf(Request $request)
 
 public function exportLeavesPdf(Request $request)
 {
-    $leaves = LeaveRequest::with(['employee', 'leaveType'])
-        ->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()])
-        ->get();
+    $leaves = $this->leaveQuery($request)->get();
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.leaves', compact('leaves'));
     return $pdf->download('cuti_' . date('Y-m-d') . '.pdf');
 }
