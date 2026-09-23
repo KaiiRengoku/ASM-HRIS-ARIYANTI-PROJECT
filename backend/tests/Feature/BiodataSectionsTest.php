@@ -22,11 +22,13 @@ class BiodataSectionsTest extends TestCase
     {
         parent::setUp();
 
+        $dosenPositionId = \App\Models\Position::where('code', 'DOSEN')->first()?->id
+            ?? \App\Models\Position::create(['name' => 'Dosen', 'code' => 'DOSEN', 'is_active' => true])->id;
         $this->lecturer = Employee::create([
             'nik' => '1234567890123456',
             'nama_lengkap' => 'Dosen Contoh',
             'email' => 'dosen@example.com',
-            'jenis_pegawai' => 'Dosen',
+            'position_id' => $dosenPositionId,
             'tanggal_masuk_kerja' => '2020-01-15',
             'tempat_lahir' => 'Jakarta',
             'alamat_domisili' => 'Jl. Domisili 2',
@@ -54,7 +56,6 @@ class BiodataSectionsTest extends TestCase
             'nik' => '1234567890123457',
             'nama_lengkap' => 'Staf Contoh',
             'email' => 'staf@example.com',
-            'jenis_pegawai' => 'Staf',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 

@@ -14,6 +14,11 @@ use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
+    private function isDosen(?Employee $employee): bool
+    {
+        return $employee?->position?->code === 'DOSEN';
+    }
+
     public function hrdStats(Request $request)
     {
         $totalPegawai = Employee::where('status_kepegawaian', 'aktif')->count();
@@ -53,7 +58,7 @@ class DashboardController extends Controller
     public function pegawaiStats(Request $request)
     {
         $user = $request->user();
-        $employee = $user->employee;
+        $employee = $user->employee()->with('position')->first();
         if (!$employee) {
             return response()->json(['success' => false, 'message' => 'Data pegawai tidak ditemukan.'], 404);
         }
@@ -81,7 +86,7 @@ class DashboardController extends Controller
         $unread = Notification::where('user_id', $user->id)->whereNull('read_at')->count();
         $totalCuti = (float) LeaveRequest::where('employee_id', $employee->id)->sum('total_days');
 
-        $isDosen = $employee->jenis_pegawai === 'Dosen';
+        $isDosen = $this->isDosen($employee);
 
         $mengajar = null;
         $penelitian = null;
@@ -181,13 +186,13 @@ class DashboardController extends Controller
     {
         // PD1/2/3 see academic staff data. For simplicity, we return similar to direktur.
         // Could filter by unit later.
-        $totalPegawai = Employee::where('jenis_pegawai', 'Dosen')->count();
-        $totalCuti = LeaveRequest::whereHas('employee', function ($q) {
-            $q->where('jenis_pegawai', 'Dosen');
+        $totalPegawai = Employee::whereHas('position', fn ($q) => $q->where('code', 'DOSEN'))->count();
+        $totalCuti = LeaveRequest::whereHas('employee.position', function ($q) {
+            $q->where('code', 'DOSEN');
         })->count();
         $totalPending = LeaveRequest::where('status', 'Pending')
-            ->whereHas('employee', function ($q) {
-                $q->where('jenis_pegawai', 'Dosen');
+            ->whereHas('employee.position', function ($q) {
+                $q->where('code', 'DOSEN');
             })->count();
 
         return response()->json([

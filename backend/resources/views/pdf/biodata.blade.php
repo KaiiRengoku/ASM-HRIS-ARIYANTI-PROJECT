@@ -54,7 +54,6 @@
         <div class="row"><span class="label">NIP</span> {{ $employee->nip ?? '-' }}</div>
         <div class="row"><span class="label">NIDN</span> {{ $employee->nidn ?? '-' }}</div>
         <div class="row"><span class="label">Status Kepegawaian</span> {{ $employee->functional?->status_kepegawaian_detail ?? $employee->status_kepegawaian ?? '-' }}</div>
-        <div class="row"><span class="label">Jenis Pegawai</span> {{ $employee->jenis_pegawai ?? '-' }}</div>
         <div class="row"><span class="label">Jabatan Fungsional</span> {{ $employee->functional?->jabatan_fungsional ?? '-' }}</div>
         <div class="row"><span class="label">Pangkat / Golongan</span> {{ $employee->functional?->pangkat ?? '-' }} / {{ $employee->functional?->golongan_ruang ?? '-' }}</div>
         <div class="row"><span class="label">TMT Pangkat</span> {{ $employee->functional?->tmt_pangkat ?? '-' }}</div>

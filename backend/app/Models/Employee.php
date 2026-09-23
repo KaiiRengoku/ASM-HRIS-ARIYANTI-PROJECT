@@ -32,7 +32,6 @@ class Employee extends Model
         'tanggal_lahir',
         'tanggal_masuk_kerja',
         'status_kepegawaian',
-        'jenis_pegawai',
         'nomor_rekening',
         'foto_path',
     ];

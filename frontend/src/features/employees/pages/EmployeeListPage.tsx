@@ -9,13 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ReadOnlyField } from '@/components/ui/read-only-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../services/employeeService';
 import { toast } from '@/components/ui/use-toast';
 
 const emptyForm = {
   nik: '', nama_lengkap: '', email: '', nomor_hp: '',
-  jenis_kelamin: '', status_kepegawaian: 'aktif', jenis_pegawai: '',
+  jenis_kelamin: '', status_kepegawaian: 'aktif',
   tanggal_masuk_kerja: '', nip: '', nidn: '', alamat: '',
   password: '', role: 'PEG', position_id: '',
 };
@@ -99,7 +101,7 @@ export default function EmployeeListPage() {
     setForm({
       nik: emp.nik || '', nama_lengkap: emp.nama_lengkap || '', email: emp.email || '',
       nomor_hp: emp.nomor_hp || '', jenis_kelamin: emp.jenis_kelamin || '',
-      status_kepegawaian: emp.status_kepegawaian || '', jenis_pegawai: emp.jenis_pegawai || '',
+      status_kepegawaian: emp.status_kepegawaian || '',
       tanggal_masuk_kerja: emp.tanggal_masuk_kerja || '', nip: emp.nip || '',
       nidn: emp.nidn || '', alamat: emp.alamat || '',
       password: '', role: emp.account?.role || 'PEG', position_id: emp.position_id ? String(emp.position_id) : '',
@@ -186,10 +188,9 @@ export default function EmployeeListPage() {
                   <Label>Status Kepegawaian</Label>
                   <Input value={form.status_kepegawaian} onChange={(e) => set('status_kepegawaian', e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Jenis Pegawai</Label>
-                  <Input value={form.jenis_pegawai} onChange={(e) => set('jenis_pegawai', e.target.value)} placeholder="Dosen/Staf" />
-                </div>
+                {editId && (
+                <ReadOnlyField label="Jabatan" value={employees.find((e: any) => e.id === editId)?.position} />
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Alamat</Label>
@@ -283,46 +284,49 @@ export default function EmployeeListPage() {
                 ) : (
                   employees.map((emp: any) => (
                     <tr key={emp.id} className="border-b last:border-b-0 hover:bg-muted/30">
-                      <td className="py-3 px-4 font-medium">{emp.nik}</td>
-                      <td className="py-3 px-4">{emp.nama_lengkap}</td>
-                      <td className="py-3 px-4">{emp.email}</td>
-                      <td className="py-3 px-4">{emp.position || '-'}</td>
+                      <td className="py-3 px-4 font-mono text-xs whitespace-nowrap">{emp.nik}</td>
+                      <td className="py-3 px-4 max-w-44 truncate font-medium" title={emp.nama_lengkap}>{emp.nama_lengkap}</td>
+                      <td className="py-3 px-4 max-w-52 truncate" title={emp.email}>{emp.email}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">{emp.position || '-'}</td>
                       <td className="py-3 px-4">
                         {emp.has_account ? (
-                          <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">{emp.account?.role_name || emp.account?.role}</span>
+                          <span className="inline-block whitespace-nowrap px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">{emp.account?.role_name || emp.account?.role}</span>
                         ) : (
-                          <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">Belum ada</span>
+                          <span className="inline-block whitespace-nowrap px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">Belum ada</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">{emp.status_kepegawaian || 'aktif'}</td>
-                      <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                        <Link to={`/pegawai/${emp.id}`}>
-                          <Button variant="outline" size="sm">Detail</Button>
-                        </Link>
-                        {isHrd && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => openEdit(emp)}>Edit</Button>
-                            {emp.has_account && (
-                              <>
-                                <Button variant="outline" size="sm" onClick={() => openAccount(emp)}>Kelola Akun</Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => { if (confirm(`Hapus akun ${emp.nama_lengkap}? Data pegawai tetap ada.`)) deleteAccountMutation.mutate(emp.id); }}
-                                >
-                                  Hapus Akun
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => { if (confirm(`Hapus data ${emp.nama_lengkap} beserta akunnya secara permanen?`)) deleteMutation.mutate(emp.id); }}
-                            >
-                              Hapus
-                            </Button>
-                          </>
-                        )}
+                      <td className="py-3 px-4 whitespace-nowrap">{emp.status_kepegawaian || 'aktif'}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link to={`/pegawai/${emp.id}`}>
+                            <Button variant="outline" size="sm">Detail</Button>
+                          </Link>
+                          {isHrd && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm">Kelola</Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEdit(emp)}>Edit Data</DropdownMenuItem>
+                                  {emp.has_account && (
+                                    <DropdownMenuItem onClick={() => openAccount(emp)}>Kelola Akun</DropdownMenuItem>
+                                  )}
+                                  {emp.has_account && (
+                                    <DropdownMenuItem onClick={() => { if (confirm(`Hapus akun ${emp.nama_lengkap}? Data pegawai tetap ada.`)) deleteAccountMutation.mutate(emp.id); }}>
+                                      Hapus Akun
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => { if (confirm(`Hapus data ${emp.nama_lengkap} beserta akunnya secara permanen?`)) deleteMutation.mutate(emp.id); }}
+                                  >
+                                    Hapus Pegawai
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))

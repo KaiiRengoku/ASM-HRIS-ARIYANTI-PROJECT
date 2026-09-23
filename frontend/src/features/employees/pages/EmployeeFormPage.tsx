@@ -12,6 +12,7 @@ import { getEmployee, createEmployee, updateEmployee } from '../services/employe
 import { api } from '@/services/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
+import { ReadOnlyField } from '@/components/ui/read-only-field';
 
 const employeeSchema = z.object({
   nik: z.string().length(16, 'NIK harus 16 digit').regex(/^[0-9]{16}$/, 'NIK harus 16 digit numerik'),
@@ -27,7 +28,6 @@ const employeeSchema = z.object({
   nomor_hp: z.string().optional(),
   jenis_kelamin: z.enum(['L', 'P']).optional(),
   status_kepegawaian: z.string().optional(),
-  jenis_pegawai: z.string().optional(),
   tanggal_masuk_kerja: z.string().min(1, 'Tanggal masuk wajib diisi'),
   nip: z.string().regex(/^[0-9]{9}$/, 'NIP harus 9 digit numerik').optional().or(z.literal('')),
   nidn: z.string().regex(/^[0-9]{10}$/, 'NIDN harus 10 digit numerik').optional().or(z.literal('')),
@@ -82,7 +82,6 @@ export default function EmployeeFormPage() {
         nomor_hp: existing.nomor_hp || '',
         jenis_kelamin: existing.jenis_kelamin || undefined,
         status_kepegawaian: existing.status_kepegawaian || '',
-        jenis_pegawai: existing.jenis_pegawai || '',
         tanggal_masuk_kerja: existing.tanggal_masuk_kerja || '',
         nip: existing.nip || '',
         nidn: existing.nidn || '',
@@ -224,10 +223,9 @@ export default function EmployeeFormPage() {
                 <Label htmlFor="status_kepegawaian">Status Kepegawaian</Label>
                 <Input id="status_kepegawaian" {...register('status_kepegawaian')} placeholder="aktif" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="jenis_pegawai">Jenis Pegawai</Label>
-                <Input id="jenis_pegawai" {...register('jenis_pegawai')} placeholder="Dosen/Staf" />
-              </div>
+              {isEdit && (
+              <ReadOnlyField label="Jabatan" value={(existing as any)?.position} />
+              )}
             </div>
 
             <div className="space-y-2">

@@ -14,7 +14,9 @@ class UpdateEmployeeRequest extends FormRequest
 
     public function rules(): array
     {
-        $id = $this->route('employee');
+        $routeEmployee = $this->route('employee');
+        $id = $routeEmployee instanceof \App\Models\Employee ? $routeEmployee->getKey() : $routeEmployee;
+        $userId = $routeEmployee instanceof \App\Models\Employee ? $routeEmployee->user_id : null;
 
         return [
             'organizational_unit_id' => ['nullable', 'exists:organizational_units,id'],
@@ -28,7 +30,7 @@ class UpdateEmployeeRequest extends FormRequest
             'status_pernikahan' => ['nullable', 'in:Kawin,Belum Kawin,Cerai'],
             'alamat_ktp' => ['nullable', 'string'],
             'alamat_domisili' => ['nullable', 'string'],
-            'email' => ['required', 'email', Rule::unique('employees', 'email')->ignore($id), Rule::unique('users', 'email')->ignore($id, 'employee_id')],
+            'email' => ['required', 'email', Rule::unique('employees', 'email')->ignore($id), Rule::unique('users', 'email')->ignore($userId)],
             'alamat' => ['nullable', 'string'],
             'nomor_hp' => ['nullable', 'string', 'max:25'],
             'nomor_ktp' => ['nullable', 'string', 'max:20', Rule::unique('employees', 'nomor_ktp')->ignore($id)],
@@ -42,7 +44,6 @@ class UpdateEmployeeRequest extends FormRequest
             'tanggal_lahir' => ['nullable', 'date'],
             'tanggal_masuk_kerja' => ['sometimes', 'required', 'date'],
             'status_kepegawaian' => ['nullable', 'string', 'max:50'],
-            'jenis_pegawai' => ['nullable', 'string', 'max:50'],
             'nomor_rekening' => ['nullable', 'string', 'max:50'],
         ];
     }

@@ -13,11 +13,16 @@ class ProfileSelfServiceTest extends TestCase
 
     private function buatUserDenganPegawai(string $jenisPegawai, string $nik = '1234567890123456'): User
     {
+        $positionId = null;
+        if ($jenisPegawai === 'Dosen') {
+            $positionId = \App\Models\Position::where('code', 'DOSEN')->first()?->id
+                ?? \App\Models\Position::create(['name' => 'Dosen', 'code' => 'DOSEN', 'is_active' => true])->id;
+        }
         $employee = Employee::create([
             'nik' => $nik,
             'nama_lengkap' => 'Pegawai ' . $jenisPegawai,
             'email' => strtolower($jenisPegawai) . $nik . '@asm-ariyanti.ac.id',
-            'jenis_pegawai' => $jenisPegawai,
+            'position_id' => $positionId,
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 

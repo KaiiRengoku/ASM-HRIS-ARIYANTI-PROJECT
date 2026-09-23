@@ -37,7 +37,6 @@ export interface Employee {
   tanggal_lahir: string | null;
   tanggal_masuk_kerja: string | null;
   status_kepegawaian: string | null;
-  jenis_pegawai: string | null;
   nomor_rekening: string | null;
   foto_path: string | null;
   created_at: string;

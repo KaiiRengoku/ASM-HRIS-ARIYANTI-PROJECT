@@ -18,11 +18,16 @@ class PegawaiDashboardTest extends TestCase
 
     private function buatUser(string $nik, string $roleCode, string $jenisPegawai = 'Staf'): User
     {
+        $positionId = null;
+        if ($jenisPegawai === 'Dosen') {
+            $positionId = \App\Models\Position::where('code', 'DOSEN')->first()?->id
+                ?? \App\Models\Position::create(['name' => 'Dosen', 'code' => 'DOSEN', 'is_active' => true])->id;
+        }
         $employee = Employee::create([
             'nik' => $nik,
             'nama_lengkap' => 'User ' . $nik,
             'email' => 'user' . $nik . '@example.com',
-            'jenis_pegawai' => $jenisPegawai,
+            'position_id' => $positionId,
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
         $user = User::create([

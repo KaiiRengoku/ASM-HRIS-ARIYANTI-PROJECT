@@ -28,7 +28,6 @@ interface Employee {
     alamat_ktp?: string | null;
     alamat_domisili?: string | null;
     nomor_hp?: string | null;
-    jenis_pegawai?: string | null;
 }
 
 interface ProfileData {
@@ -161,7 +160,7 @@ export default function ProfilePage() {
     });
 
     const employee = profile?.employee ?? null;
-    const isDosen = profile?.is_dosen ?? employee?.jenis_pegawai === 'Dosen';
+    const isDosen = profile?.is_dosen ?? false;
     const isPegawai = profile?.is_pegawai ?? (isDosen || (profile?.roles ?? []).some((r) => (r.code ?? r.name) === 'PEG'));
 
     const { data: assignments } = useQuery({

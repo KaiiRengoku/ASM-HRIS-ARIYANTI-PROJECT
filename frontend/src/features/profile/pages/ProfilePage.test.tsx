@@ -13,12 +13,11 @@ test('menampilkan lima tab profil', () => {
   }
 });
 
-test('menyembunyikan tab Penelitian & Pernyataan untuk non-dosen jenis_pegawai=Dosen saja', () => {
-  assert.ok(src.includes("jenis_pegawai === 'Dosen'"), 'penanda Dosen hilang');
+test('menyembunyikan tab Penelitian & Pernyataan untuk non-dosen via is_dosen saja', () => {
+  assert.ok(src.includes('is_dosen'), 'flag is_dosen hilang');
   assert.ok(src.includes('isDosen'), 'penanda isDosen hilang');
   assert.ok(src.includes('Penelitian & Pernyataan'), 'tab penelitian hilang');
-  assert.ok(!src.includes('Dosen Tetap'), 'hanya jenis_pegawai=Dosen yang berlaku');
-  assert.ok(!src.includes('Dosen Tidak Tetap'), 'hanya jenis_pegawai=Dosen yang berlaku');
+  assert.ok(!src.includes('jenis_pegawai'), 'referensi jenis_pegawai harus hilang');
 });
 
 test('membatasi tab Mata Kuliah hanya untuk Dosen/Pegawai', () => {

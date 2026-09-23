@@ -38,7 +38,6 @@ class EmployeeResource extends JsonResource
             'tanggal_lahir' => $this->tanggal_lahir?->format('Y-m-d'),
             'tanggal_masuk_kerja' => $this->tanggal_masuk_kerja?->format('Y-m-d'),
             'status_kepegawaian' => $this->status_kepegawaian,
-            'jenis_pegawai' => $this->jenis_pegawai,
             'nomor_rekening' => $this->nomor_rekening,
             'foto_path' => $this->foto_path,
             'has_account' => $this->whenLoaded('user', fn() => $this->user !== null),

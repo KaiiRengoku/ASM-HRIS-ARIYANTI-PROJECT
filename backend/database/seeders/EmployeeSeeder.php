@@ -16,7 +16,6 @@ class EmployeeSeeder extends Seeder
             'nomor_hp' => '081234567891',
             'jenis_kelamin' => 'L',
             'status_kepegawaian' => 'aktif',
-            'jenis_pegawai' => 'Dosen',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 
@@ -27,7 +26,6 @@ class EmployeeSeeder extends Seeder
             'nomor_hp' => '081234567892',
             'jenis_kelamin' => 'P',
             'status_kepegawaian' => 'aktif',
-            'jenis_pegawai' => 'Staf',
             'tanggal_masuk_kerja' => '2021-06-01',
         ]);
 
@@ -38,7 +36,6 @@ class EmployeeSeeder extends Seeder
             'nomor_hp' => '081234567893',
             'jenis_kelamin' => 'L',
             'status_kepegawaian' => 'aktif',
-            'jenis_pegawai' => 'Dosen',
             'tanggal_masuk_kerja' => '2019-08-20',
         ]);
     }

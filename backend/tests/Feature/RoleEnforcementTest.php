@@ -18,7 +18,6 @@ class RoleEnforcementTest extends TestCase
             'nik' => $nik,
             'nama_lengkap' => 'User ' . $nik,
             'email' => 'user' . $nik . '@example.com',
-            'jenis_pegawai' => 'Staf',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
         $user = User::create([

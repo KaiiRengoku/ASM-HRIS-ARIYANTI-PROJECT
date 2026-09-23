@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ReadOnlyField } from '@/components/ui/read-only-field';
 import { api } from '@/services/api';
 import { getEmployee } from '../services/employeeService';
 import { useAuthStore } from '@/stores/authStore';
@@ -76,19 +77,18 @@ export default function EmployeeDetailPage() {
           <CardTitle>{employee.nama_lengkap}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div><span className="font-medium">NIK</span><br />{employee.nik}</div>
-          <div><span className="font-medium">Email</span><br />{employee.email}</div>
-          <div><span className="font-medium">Nomor HP</span><br />{employee.nomor_hp || '-'}</div>
-          <div><span className="font-medium">Jenis Kelamin</span><br />{employee.jenis_kelamin === 'L' ? 'Laki-laki' : employee.jenis_kelamin === 'P' ? 'Perempuan' : '-'}</div>
-          <div><span className="font-medium">NIP</span><br />{employee.nip || '-'}</div>
-          <div><span className="font-medium">NIDN</span><br />{employee.nidn || '-'}</div>
-          <div><span className="font-medium">Jabatan</span><br />{employee.position || '-'}</div>
-          <div><span className="font-medium">Unit</span><br />{employee.organizational_unit || '-'}</div>
-          <div><span className="font-medium">Status Kepegawaian</span><br />{employee.status_kepegawaian || '-'}</div>
-          <div><span className="font-medium">Jenis Pegawai</span><br />{employee.jenis_pegawai || '-'}</div>
-          <div><span className="font-medium">Tanggal Masuk</span><br />{employee.tanggal_masuk_kerja || '-'}</div>
-          <div><span className="font-medium">Masa Kerja</span><br />{getMasaKerja(employee.tanggal_masuk_kerja)}</div>
-          <div><span className="font-medium">Alamat</span><br />{employee.alamat || '-'}</div>
+          <ReadOnlyField label="NIK" value={employee.nik} />
+          <ReadOnlyField label="Email" value={employee.email} />
+          <ReadOnlyField label="Nomor HP" value={employee.nomor_hp} />
+          <ReadOnlyField label="Jenis Kelamin" value={employee.jenis_kelamin === 'L' ? 'Laki-laki' : employee.jenis_kelamin === 'P' ? 'Perempuan' : '-'} />
+          <ReadOnlyField label="NIP" value={employee.nip} />
+          <ReadOnlyField label="NIDN" value={employee.nidn} />
+          <ReadOnlyField label="Jabatan" value={employee.position} />
+          <ReadOnlyField label="Unit" value={employee.organizational_unit} />
+          <ReadOnlyField label="Status Kepegawaian" value={employee.status_kepegawaian} />
+          <ReadOnlyField label="Tanggal Masuk" value={employee.tanggal_masuk_kerja} />
+          <ReadOnlyField label="Masa Kerja" value={getMasaKerja(employee.tanggal_masuk_kerja)} />
+          <ReadOnlyField label="Alamat" value={employee.alamat} className="sm:col-span-2" />
         </CardContent>
       </Card>
 
@@ -98,8 +98,8 @@ export default function EmployeeDetailPage() {
             <CardTitle>Informasi Akun</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div><span className="font-medium">Username (NIK)</span><br />{employee.nik}</div>
-            <div><span className="font-medium">Role</span><br />{employee.account?.role_name || employee.account?.role || 'Belum ada akun'}</div>
+            <ReadOnlyField label="Username (NIK)" value={employee.nik} />
+            <ReadOnlyField label="Role" value={employee.account?.role_name || employee.account?.role || 'Belum ada akun'} />
           </CardContent>
         </Card>
       )}

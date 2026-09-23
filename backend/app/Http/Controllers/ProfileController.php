@@ -8,11 +8,16 @@ use Illuminate\Support\Arr;
 
 class ProfileController extends Controller
 {
+    private function isDosen($employee): bool
+    {
+        return $employee?->position?->code === 'DOSEN';
+    }
+
     public function show(Request $request)
     {
-        $user = $request->user()->load(['employee', 'roles']);
+        $user = $request->user()->load(['employee.position', 'roles']);
         $data = $user->toArray();
-        $data['is_dosen'] = $user->employee?->jenis_pegawai === 'Dosen';
+        $data['is_dosen'] = $this->isDosen($user->employee);
         $data['is_pegawai'] = $data['is_dosen'] || collect($user->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -35,16 +40,17 @@ class ProfileController extends Controller
 
         $employee->update(Arr::except($validated, ['riwayat_penelitian_pengabdian']));
 
-        if ($request->filled('riwayat_penelitian_pengabdian') && $employee->jenis_pegawai === 'Dosen') {
+        $employee->loadMissing('position');
+        if ($request->filled('riwayat_penelitian_pengabdian') && $this->isDosen($employee)) {
             $employee->functional()->updateOrCreate(
                 ['employee_id' => $employee->id],
                 ['riwayat_penelitian_pengabdian' => $validated['riwayat_penelitian_pengabdian']]
             );
         }
 
-        $user->load(['employee', 'roles']);
+        $user->load(['employee.position', 'roles']);
         $data = $user->toArray();
-        $data['is_dosen'] = $employee->jenis_pegawai === 'Dosen';
+        $data['is_dosen'] = $this->isDosen($user->employee);
         $data['is_pegawai'] = $data['is_dosen'] || collect($user->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
 
         return response()->json(['success' => true, 'data' => $data]);

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/services/api';
@@ -7,6 +8,23 @@ const fetchStats = async () => {
     const res = await api.get('/dashboard/stats');
     return res.data.data;
 };
+
+const quickActionClass = "w-full px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+
+function QuickAction({ to, onClick, disabled, children }: { to?: string; onClick?: () => void; disabled?: boolean; children: ReactNode }) {
+    if (to) {
+        return (
+            <Link to={to} className="block">
+                <button className={quickActionClass}>{children}</button>
+            </Link>
+        );
+    }
+    return (
+        <button className={quickActionClass} onClick={onClick} disabled={disabled}>
+            {children}
+        </button>
+    );
+}
 
 const downloadBiodata = async (kind: 'pdf' | 'word', employeeId: number, fileName: string) => {
     const url = kind === 'pdf' ? `/reports/biodata-pdf/${employeeId}` : `/reports/biodata-word/${employeeId}`;
@@ -139,38 +157,26 @@ export default function PegawaiDashboard() {
                         <CardTitle>Aksi Cepat</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2">
-                        <Link to="/cuti/create">
+                        <Link to="/cuti/create" className="block col-span-2">
                             <button className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
                                 Ajukan Cuti
                             </button>
                         </Link>
-                        <Link to="/dokumen">
-                            <button className="w-full px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors">
-                                Upload Dokumen
-                            </button>
-                        </Link>
-                        <Link to="/profile">
-                            <button className="w-full px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors">
-                                Profil Saya
-                            </button>
-                        </Link>
-                        <Link to="/profile/password">
-                            <button className="w-full px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors">
-                                Ganti Password
-                            </button>
-                        </Link>
-                        <button
-                            className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
+                        <QuickAction to="/dokumen">Unggah Dokumen</QuickAction>
+                        <QuickAction to="/profile">Profil Saya</QuickAction>
+                        <QuickAction to="/profile/password">Ganti Kata Sandi</QuickAction>
+                        <QuickAction
+                            disabled={!data?.employee_id}
                             onClick={() => data?.employee_id && downloadBiodata('pdf', data.employee_id, 'saya')}
                         >
-                            Biodata PDF
-                        </button>
-                        <button
-                            className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
+                            Unduh Biodata PDF
+                        </QuickAction>
+                        <QuickAction
+                            disabled={!data?.employee_id}
                             onClick={() => data?.employee_id && downloadBiodata('word', data.employee_id, 'saya')}
                         >
-                            Biodata Word
-                        </button>
+                            Unduh Biodata Word
+                        </QuickAction>
                     </CardContent>
                 </Card>
             </div>

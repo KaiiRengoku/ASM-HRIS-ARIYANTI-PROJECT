@@ -17,7 +17,6 @@ class UserSeeder extends Seeder
             'nama_lengkap' => 'HRD Admin',
             'email' => 'hrd@asm-ariyanti.ac.id',
             'status_kepegawaian' => 'aktif',
-            'jenis_pegawai' => 'Staf',
             'tanggal_masuk_kerja' => '2020-01-01',
         ]);
 

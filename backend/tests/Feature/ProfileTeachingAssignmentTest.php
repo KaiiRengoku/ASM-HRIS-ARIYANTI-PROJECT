@@ -33,11 +33,16 @@ class ProfileTeachingAssignmentTest extends TestCase
 
     private function buatUser(string $jenisPegawai, string $nik, bool $isHrd = false): User
     {
+        $positionId = null;
+        if ($jenisPegawai === 'Dosen') {
+            $positionId = \App\Models\Position::where('code', 'DOSEN')->first()?->id
+                ?? \App\Models\Position::create(['name' => 'Dosen', 'code' => 'DOSEN', 'is_active' => true])->id;
+        }
         $employee = Employee::create([
             'nik' => $nik,
             'nama_lengkap' => 'Pegawai ' . $nik,
             'email' => 'pegawai' . $nik . '@asm-ariyanti.ac.id',
-            'jenis_pegawai' => $jenisPegawai,
+            'position_id' => $positionId,
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 
