@@ -114,6 +114,39 @@ class LeaveAccrueTest extends TestCase
         ]);
     }
 
+    public function test_accrue_tahan_race_duplikat_tanpa_500(): void
+    {
+        $hrd = $this->buatUser('1234567890123456', 'HRD');
+        $annual = \App\Models\LeaveType::create(['name' => 'Tahunan', 'code' => 'ANNUAL']);
+        $year = (int) date('Y') + 1;
+        $employeeId = $hrd->employee_id;
+
+        $armed = true;
+        \App\Models\LeaveBalance::creating(function ($model) use ($annual, $year, $employeeId, &$armed) {
+            if (!$armed) {
+                return;
+            }
+            $armed = false;
+            \Illuminate\Support\Facades\DB::table('leave_balances')->insert([
+                'employee_id' => $employeeId,
+                'leave_type_id' => $annual->id,
+                'period_year' => $year,
+                'entitled_days' => 12,
+                'remaining_days' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $response = $this->actingAs($hrd)->postJson('/api/leave-balances/accrue', [
+            'year' => $year, 'employee_ids' => [$employeeId],
+        ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $this->assertContains($employeeId, $response->json('data.skipped'));
+        $this->assertCount(1, \App\Models\LeaveBalance::all());
+    }
+
     public function test_non_hrd_ditolak(): void
     {
         $peg = $this->buatUser('1234567890123456', 'PEG');

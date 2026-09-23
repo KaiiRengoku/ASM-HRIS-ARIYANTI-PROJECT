@@ -8,6 +8,7 @@ use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveType;
 use App\Services\LeaveCalculationService;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class LeaveBalanceController extends Controller
@@ -139,15 +140,23 @@ class LeaveBalanceController extends Controller
                 }
                 $remaining = $entitled + $prev;
                 $reason = "Akrual tahunan {$year}" . ($carryOver ? " - {$request->carry_reason}" : '');
-                $balance = LeaveBalance::create([
-                    'employee_id' => $employee->id,
-                    'leave_type_id' => $annual->id,
-                    'period_year' => $year,
-                    'entitled_days' => $entitled,
-                    'adjustment_days' => $prev,
-                    'used_days' => 0,
-                    'remaining_days' => $remaining,
-                ]);
+                try {
+                    $balance = LeaveBalance::create([
+                        'employee_id' => $employee->id,
+                        'leave_type_id' => $annual->id,
+                        'period_year' => $year,
+                        'entitled_days' => $entitled,
+                        'adjustment_days' => $prev,
+                        'used_days' => 0,
+                        'remaining_days' => $remaining,
+                    ]);
+                } catch (QueryException $e) {
+                    if ($e->getCode() !== '23000') {
+                        throw $e;
+                    }
+                    $skipped[] = $employee->id;
+                    continue;
+                }
                 LeaveBalanceTransaction::create([
                     'leave_balance_id' => $balance->id,
                     'employee_id' => $employee->id,
