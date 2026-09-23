@@ -33,7 +33,9 @@ class DocumentController extends Controller
         if ($request->search) {
             $query->whereHas('employee', function ($q) use ($request) {
                 $q->where('nama_lengkap', 'LIKE', "%{$request->search}%")
-                  ->orWhere('nik', 'LIKE', "%{$request->search}%");
+                  ->orWhere('nik', 'LIKE', "%{$request->search}%")
+                  ->orWhere('nip', 'LIKE', "%{$request->search}%")
+                  ->orWhere('nidn', 'LIKE', "%{$request->search}%");
             });
         }
 
