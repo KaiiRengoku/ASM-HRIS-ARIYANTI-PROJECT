@@ -126,11 +126,9 @@ class LeaveController extends Controller
             return response()->json(['success' => false, 'message' => 'Alasan keadaan darurat wajib diisi.'], 400);
         }
 
-        // Calculate total days (simplified: count days between start and end inclusive)
-        $start = new \DateTime($request->start_date);
-        $end = new \DateTime($request->end_date);
-        $interval = $start->diff($end);
-        $totalDays = $interval->days + 1; // inclusive
+        $emp = \App\Models\Employee::find($request->employee_id);
+        $totalDays = \App\Services\WorkingDayService::count($request->start_date, $request->end_date, $emp?->organizational_unit_id);
+        if ($totalDays < 1) return response()->json(['success' => false, 'message' => 'Total hari kerja 0. Rentang hanya berisi akhir pekan/libur.'], 400);
 
         // Check if leave type deducts balance and if enough balance
         $leaveType = \App\Models\LeaveType::find($request->leave_type_id);
@@ -439,11 +437,9 @@ class LeaveController extends Controller
             'reason' => ['nullable', 'string'],
         ]);
 
-        // Recalculate total days
-        $start = new \DateTime($validated['start_date']);
-        $end = new \DateTime($validated['end_date']);
-        $interval = $start->diff($end);
-        $totalDays = $interval->days + 1;
+        $emp = \App\Models\Employee::find($leave->employee_id);
+        $totalDays = \App\Services\WorkingDayService::count($validated['start_date'], $validated['end_date'], $emp?->organizational_unit_id);
+        if ($totalDays < 1) return response()->json(['success' => false, 'message' => 'Total hari kerja 0. Rentang hanya berisi akhir pekan/libur.'], 400);
 
         $old = $leave->only(['leave_type_id', 'start_date', 'end_date', 'total_days']);
         $leave->update([
