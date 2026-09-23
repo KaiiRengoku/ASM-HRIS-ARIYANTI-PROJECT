@@ -4,7 +4,7 @@ import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,6 +44,16 @@ export default function CalendarPage() {
     const [editEnd, setEditEnd] = useState('');
     const [bulkUnitId, setBulkUnitId] = useState('');
 
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+    const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+    const [viewFrom, setViewFrom] = useState(toISODate(monthStart));
+    const [viewTo, setViewTo] = useState(toISODate(monthEnd));
+    const [viewUnitId, setViewUnitId] = useState('');
+    const rangeDays = viewFrom && viewTo ? Math.round((new Date(viewTo).getTime() - new Date(viewFrom).getTime()) / 86400000) + 1 : 0;
+    const rangeValid = !!viewFrom && !!viewTo && viewTo >= viewFrom && rangeDays <= 366;
+
     const queryClient = useQueryClient();
     const { hasRole } = useAuthStore();
     const isHrd = hasRole('HRD');
@@ -54,6 +64,16 @@ export default function CalendarPage() {
         queryKey: ['organizational-units'],
         queryFn: async () => (await api.get('/organizational-units')).data.data,
     });
+
+    const fetchCalendarView = async () => (await api.get('/calendar-view', { params: { from: viewFrom, to: viewTo, unit_id: viewUnitId || undefined } })).data.data;
+    const { data: calendarView, isLoading: isViewLoading, error: viewError } = useQuery({
+        queryKey: ['calendar-view', viewFrom, viewTo, viewUnitId],
+        queryFn: fetchCalendarView,
+        enabled: rangeValid,
+    });
+    const viewHolidays: any[] = calendarView?.holidays ?? [];
+    const viewLeaves: any[] = calendarView?.leaves ?? [];
+    const viewSchedules: any[] = calendarView?.schedules ?? [];
 
     const createMutation = useMutation({
         mutationFn: createHoliday,
@@ -329,6 +349,76 @@ export default function CalendarPage() {
                             )}
                         </TableBody>
                     </Table>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Gambaran Kalender</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div className="space-y-2">
+                            <Label>Tanggal Mulai</Label>
+                            <Input type="date" value={viewFrom} onChange={(e) => setViewFrom(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Tanggal Selesai</Label>
+                            <Input type="date" value={viewTo} onChange={(e) => setViewTo(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Unit / Divisi</Label>
+                            <Select value={viewUnitId || 'all'} onValueChange={(v) => setViewUnitId(v === 'all' ? '' : v)}>
+                                <SelectTrigger><SelectValue placeholder="Semua divisi" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua divisi</SelectItem>
+                                    {units?.map((u: any) => (
+                                        <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    {!rangeValid ? (
+                        <p className="text-sm text-destructive">Rentang tanggal tidak valid (tanggal selesai harus setelah tanggal mulai, maksimal 366 hari).</p>
+                    ) : isViewLoading ? (
+                        <p className="text-sm text-muted-foreground">Memuat gambaran kalender...</p>
+                    ) : viewError ? (
+                        <p className="text-sm text-destructive">Gagal memuat data.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div className="space-y-2">
+                                <h3 className="font-semibold">Libur ({viewHolidays.length})</h3>
+                                {viewHolidays.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">Tidak ada libur pada rentang ini.</p>
+                                ) : (
+                                    viewHolidays.map((h: any) => (
+                                        <p key={h.id} className="text-sm">{h.date} — {h.name}</p>
+                                    ))
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-semibold">Cuti ({viewLeaves.length})</h3>
+                                {viewLeaves.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">Tidak ada cuti pada rentang ini.</p>
+                                ) : (
+                                    viewLeaves.map((l: any) => (
+                                        <p key={l.id} className="text-sm">{l.employee?.nama_lengkap || `Pegawai #${l.employee_id}`} — {l.start_date} s/d {l.end_date} — {l.status}</p>
+                                    ))
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-semibold">Jadwal ({viewSchedules.length})</h3>
+                                {viewSchedules.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">Tidak ada jadwal aktif untuk filter ini.</p>
+                                ) : (
+                                    viewSchedules.map((s: any) => (
+                                        <p key={s.id} className="text-sm">{days[s.day_of_week - 1]} {s.start_time?.slice(0, 5)} - {s.end_time?.slice(0, 5)}{s.organizational_unit?.name ? ` — ${s.organizational_unit.name}` : ''}</p>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

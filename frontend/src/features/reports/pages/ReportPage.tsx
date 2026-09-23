@@ -1,9 +1,38 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/services/api';
 import { toast } from '@/components/ui/use-toast';
 
+const leaveStatuses = ['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD', 'Ditolak Kepala Bagian', 'Ditolak HRD', 'Cancelled'];
+
 export default function ReportPage() {
+    const [leaveStatus, setLeaveStatus] = useState('');
+    const [leaveTypeId, setLeaveTypeId] = useState('');
+    const [leaveEmployeeId, setLeaveEmployeeId] = useState('');
+    const [leaveFrom, setLeaveFrom] = useState('');
+    const [leaveTo, setLeaveTo] = useState('');
+
+    const { data: leaveTypes } = useQuery({
+        queryKey: ['leave-types'],
+        queryFn: async () => (await api.get('/leave-types')).data.data,
+    });
+
+    const leaveQuery = () => {
+        const params = new URLSearchParams();
+        if (leaveStatus) params.append('status', leaveStatus);
+        if (leaveTypeId) params.append('leave_type_id', leaveTypeId);
+        if (leaveEmployeeId) params.append('employee_id', leaveEmployeeId);
+        if (leaveFrom) params.append('from', leaveFrom);
+        if (leaveTo) params.append('to', leaveTo);
+        const qs = params.toString();
+        return qs ? `?${qs}` : '';
+    };
+
 const exportEmployees = async () => {
     try {
         const response = await api.get('/reports/employees/export', { responseType: 'blob' });
@@ -22,7 +51,7 @@ const exportEmployees = async () => {
 
 const exportLeaves = async () => {
     try {
-        const response = await api.get('/reports/leaves/export', { responseType: 'blob' });
+        const response = await api.get(`/reports/leaves/export${leaveQuery()}`, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
@@ -70,10 +99,50 @@ const downloadBlob = async (url: string, filename: string) => {
                 <CardHeader>
                     <CardTitle>Ekspor Data Cuti</CardTitle>
                 </CardHeader>
-                <CardContent className="flex gap-2">
-                    <Button onClick={exportLeaves}>CSV</Button>
-                    <Button variant="outline" onClick={() => downloadBlob('/reports/leaves/excel', `cuti_${new Date().toISOString().slice(0,10)}.xls`)}>Excel</Button>
-                    <Button variant="outline" onClick={() => downloadBlob('/reports/leaves/pdf', `cuti_${new Date().toISOString().slice(0,10)}.pdf`)}>PDF</Button>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div className="space-y-2">
+                            <Label>Status</Label>
+                            <Select value={leaveStatus || 'all'} onValueChange={(v) => setLeaveStatus(v === 'all' ? '' : v)}>
+                                <SelectTrigger><SelectValue placeholder="Semua status" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua status</SelectItem>
+                                    {leaveStatuses.map((s) => (
+                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Jenis Cuti</Label>
+                            <Select value={leaveTypeId || 'all'} onValueChange={(v) => setLeaveTypeId(v === 'all' ? '' : v)}>
+                                <SelectTrigger><SelectValue placeholder="Semua jenis" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua jenis</SelectItem>
+                                    {leaveTypes?.map((t: any) => (
+                                        <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>ID Pegawai</Label>
+                            <Input value={leaveEmployeeId} onChange={(e) => setLeaveEmployeeId(e.target.value)} placeholder="ID Pegawai" inputMode="numeric" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Tanggal Mulai</Label>
+                            <Input type="date" value={leaveFrom} onChange={(e) => setLeaveFrom(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Tanggal Selesai</Label>
+                            <Input type="date" value={leaveTo} onChange={(e) => setLeaveTo(e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button onClick={exportLeaves}>CSV</Button>
+                        <Button variant="outline" onClick={() => downloadBlob(`/reports/leaves/excel${leaveQuery()}`, `cuti_${new Date().toISOString().slice(0,10)}.xls`)}>Excel</Button>
+                        <Button variant="outline" onClick={() => downloadBlob(`/reports/leaves/pdf${leaveQuery()}`, `cuti_${new Date().toISOString().slice(0,10)}.pdf`)}>PDF</Button>
+                    </div>
                 </CardContent>
             </Card>
         </div>
