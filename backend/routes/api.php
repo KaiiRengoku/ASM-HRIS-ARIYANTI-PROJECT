@@ -57,6 +57,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('work-schedules/{workSchedule}/toggle', [WorkScheduleController::class, 'toggle']);
         Route::delete('work-schedules/{workSchedule}', [WorkScheduleController::class, 'destroy']);
         Route::post('leave-balances/adjust', [LeaveBalanceController::class, 'adjust']);
+        Route::post('leave-balances/accrue', [LeaveBalanceController::class, 'accrue']);
         Route::get('audit-logs', [AuditLogController::class, 'index']);
         Route::post('leave-attachments/{attachment}/verify', [LeaveController::class, 'verifyAttachment']);
         Route::put('leaves/{leave}', [LeaveController::class, 'update']);

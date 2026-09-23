@@ -8,6 +8,7 @@ use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveType;
 use App\Services\LeaveCalculationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LeaveBalanceController extends Controller
 {
@@ -82,5 +83,98 @@ class LeaveBalanceController extends Controller
         ]);
 
         return response()->json(['success' => true, 'data' => $balance]);
+    }
+
+    public function accrue(Request $request)
+    {
+        $request->validate([
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'employee_ids' => ['nullable', 'array'],
+            'employee_ids.*' => ['exists:employees,id'],
+            'carry_over' => ['boolean'],
+            'carry_reason' => ['required_if:carry_over,true', 'string'],
+        ], [
+            'year.required' => 'Tahun wajib diisi.',
+            'year.integer' => 'Tahun harus berupa angka.',
+            'year.min' => 'Tahun minimal 2000.',
+            'year.max' => 'Tahun maksimal 2100.',
+            'employee_ids.array' => 'Daftar pegawai harus berupa array.',
+            'employee_ids.*.exists' => 'Pegawai tidak ditemukan.',
+            'carry_over.boolean' => 'Carry over harus berupa boolean.',
+            'carry_reason.required_if' => 'Alasan carry over wajib diisi.',
+            'carry_reason.string' => 'Alasan carry over harus berupa teks.',
+        ]);
+
+        $year = (int) $request->year;
+        $carryOver = (bool) $request->input('carry_over', false);
+        $annual = LeaveType::where('code', 'ANNUAL')->first();
+        if (!$annual) {
+            return response()->json(['success' => false, 'message' => 'Jenis cuti ANNUAL tidak ditemukan.'], 404);
+        }
+
+        $employees = $request->filled('employee_ids')
+            ? Employee::whereIn('id', $request->employee_ids)->get()
+            : Employee::all();
+
+        $result = DB::transaction(function () use ($employees, $annual, $year, $carryOver, $request) {
+            $created = [];
+            $skipped = [];
+            foreach ($employees as $employee) {
+                $exists = LeaveBalance::where('employee_id', $employee->id)
+                    ->where('leave_type_id', $annual->id)
+                    ->where('period_year', $year)
+                    ->exists();
+                if ($exists) {
+                    $skipped[] = $employee->id;
+                    continue;
+                }
+                $entitled = LeaveCalculationService::entitledDays($employee, $year);
+                $prev = 0;
+                if ($carryOver) {
+                    $prevBalance = LeaveBalance::where('employee_id', $employee->id)
+                        ->where('leave_type_id', $annual->id)
+                        ->where('period_year', $year - 1)
+                        ->first();
+                    $prev = $prevBalance ? (float) $prevBalance->remaining_days : 0;
+                }
+                $remaining = $entitled + $prev;
+                $reason = "Akrual tahunan {$year}" . ($carryOver ? " - {$request->carry_reason}" : '');
+                $balance = LeaveBalance::create([
+                    'employee_id' => $employee->id,
+                    'leave_type_id' => $annual->id,
+                    'period_year' => $year,
+                    'entitled_days' => $entitled,
+                    'adjustment_days' => $prev,
+                    'used_days' => 0,
+                    'remaining_days' => $remaining,
+                ]);
+                LeaveBalanceTransaction::create([
+                    'leave_balance_id' => $balance->id,
+                    'employee_id' => $employee->id,
+                    'transaction_type' => 'ACCRUAL',
+                    'amount' => $remaining,
+                    'balance_before' => 0,
+                    'balance_after' => $remaining,
+                    'reason' => $reason,
+                    'created_by' => $request->user()->id,
+                ]);
+                \App\Models\AuditLog::create([
+                    'user_id' => $request->user()->id,
+                    'action' => 'ACCRUE_LEAVE_BALANCE',
+                    'auditable_type' => \App\Models\LeaveBalance::class,
+                    'auditable_id' => $balance->id,
+                    'old_values' => null,
+                    'new_values' => ['period_year' => $year, 'entitled_days' => $entitled, 'carry_over' => $carryOver, 'remaining_days' => $remaining],
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'created_at' => now(),
+                ]);
+                $created[] = $balance->id;
+            }
+
+            return ['created' => $created, 'skipped' => $skipped];
+        });
+
+        return response()->json(['success' => true, 'data' => ['year' => $year] + $result]);
     }
 }
