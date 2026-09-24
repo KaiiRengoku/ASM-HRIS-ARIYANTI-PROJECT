@@ -94,6 +94,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('reports/leaves/excel', [ReportController::class, 'exportLeavesExcel']);
         Route::get('reports/leaves/pdf', [ReportController::class, 'exportLeavesPdf']);
     });
+    Route::get('reports/leaves/recap', [ReportController::class, 'leaveRecap'])
+        ->middleware(['role:HRD,DIREKTUR,PD_I,PD_II,PD_III', 'permission:leave.view']);
 
     Route::get('documents', [DocumentController::class, 'index'])->middleware('permission:document.view');
     Route::post('documents', [DocumentController::class, 'store'])->middleware('permission:document.upload');

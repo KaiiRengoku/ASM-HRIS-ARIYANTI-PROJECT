@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { api } from '@/services/api';
 import { toast } from '@/components/ui/use-toast';
 
@@ -16,6 +17,12 @@ export default function ReportPage() {
     const [leaveEmployeeId, setLeaveEmployeeId] = useState('');
     const [leaveFrom, setLeaveFrom] = useState('');
     const [leaveTo, setLeaveTo] = useState('');
+    const [recapYear, setRecapYear] = useState(String(new Date().getFullYear()));
+
+    const { data: recap } = useQuery({
+        queryKey: ['leave-recap', recapYear],
+        queryFn: async () => (await api.get('/reports/leaves/recap', { params: { year: recapYear } })).data.data,
+    });
 
     const { data: leaveTypes } = useQuery({
         queryKey: ['leave-types'],
@@ -143,6 +150,48 @@ const downloadBlob = async (url: string, filename: string) => {
                         <Button variant="outline" onClick={() => downloadBlob(`/reports/leaves/excel${leaveQuery()}`, `cuti_${new Date().toISOString().slice(0,10)}.xls`)}>Excel</Button>
                         <Button variant="outline" onClick={() => downloadBlob(`/reports/leaves/pdf${leaveQuery()}`, `cuti_${new Date().toISOString().slice(0,10)}.pdf`)}>PDF</Button>
                     </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Rekap Sisa Cuti Tahunan per Pegawai</CardTitle>
+                    <div className="w-32">
+                        <Input type="number" value={recapYear} onChange={(e) => setRecapYear(e.target.value)} placeholder="Tahun" />
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>NIK</TableHead>
+                                <TableHead>Nama</TableHead>
+                                <TableHead>Jabatan</TableHead>
+                                <TableHead>Hak</TableHead>
+                                <TableHead>Penyesuaian</TableHead>
+                                <TableHead>Terpakai</TableHead>
+                                <TableHead>Sisa</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {!recap?.length ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="text-center text-muted-foreground">Belum ada data saldo cuti.</TableCell>
+                                </TableRow>
+                            ) : (
+                                recap.map((r: any) => (
+                                    <TableRow key={r.employee_id}>
+                                        <TableCell>{r.nik}</TableCell>
+                                        <TableCell>{r.nama_lengkap}</TableCell>
+                                        <TableCell>{r.jabatan || '-'}</TableCell>
+                                        <TableCell>{r.entitled_days}</TableCell>
+                                        <TableCell>{r.adjustment_days}</TableCell>
+                                        <TableCell>{r.used_days}</TableCell>
+                                        <TableCell className="font-bold">{r.remaining_days}</TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
                 </CardContent>
             </Card>
         </div>

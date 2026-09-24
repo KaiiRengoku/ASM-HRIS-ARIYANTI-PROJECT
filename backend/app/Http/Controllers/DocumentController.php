@@ -15,7 +15,17 @@ class DocumentController extends Controller
         return $request->user()->roles()->where('code', 'HRD')->exists();
     }
 
-    private function canAccess(Request $request, int $employeeId): bool
+    private function canViewAll(Request $request): bool
+    {
+        return $request->user()->roles()->whereIn('code', ['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'])->exists();
+    }
+
+    private function canView(Request $request, int $employeeId): bool
+    {
+        return $this->canViewAll($request) || $employeeId === (int) $request->user()->employee_id;
+    }
+
+    private function canMutate(Request $request, int $employeeId): bool
     {
         return $this->isHrd($request) || $employeeId === (int) $request->user()->employee_id;
     }
@@ -24,7 +34,7 @@ class DocumentController extends Controller
     {
         $query = EmployeeDocument::with('employee');
 
-        if (!$this->isHrd($request)) {
+        if (!$this->canViewAll($request)) {
             $query->where('employee_id', $request->user()->employee_id);
         } elseif ($request->employee_id) {
             $query->where('employee_id', $request->employee_id);
@@ -61,7 +71,7 @@ class DocumentController extends Controller
             'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 
-        if (!$this->canAccess($request, (int) $request->employee_id)) {
+        if (!$this->canMutate($request, (int) $request->employee_id)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
 
@@ -95,7 +105,7 @@ class DocumentController extends Controller
 
     public function show(Request $request, EmployeeDocument $document)
     {
-        if (!$this->canAccess($request, $document->employee_id)) {
+        if (!$this->canView($request, $document->employee_id)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
 
@@ -104,7 +114,7 @@ class DocumentController extends Controller
 
     public function download(Request $request, EmployeeDocument $document)
     {
-        if (!$this->canAccess($request, $document->employee_id)) {
+        if (!$this->canView($request, $document->employee_id)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
 
@@ -117,7 +127,7 @@ class DocumentController extends Controller
 
     public function destroy(Request $request, EmployeeDocument $document)
     {
-        if (!$this->canAccess($request, $document->employee_id)) {
+        if (!$this->canMutate($request, $document->employee_id)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
 

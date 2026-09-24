@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
@@ -118,7 +119,37 @@ private function leaveQuery(Request $request)
         ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->employee_id));
 }
 
-public function exportEmployeesExcel(Request $request)
+public function leaveRecap(Request $request)
+    {
+        $year = (int) $request->query('year', date('Y'));
+
+        $employees = Employee::with('position')->orderBy('nama_lengkap')->get();
+        $annualId = \App\Models\LeaveType::where('code', 'ANNUAL')->value('id');
+        $balances = LeaveBalance::where('period_year', $year)
+            ->where('leave_type_id', $annualId)
+            ->get()
+            ->keyBy('employee_id');
+
+        $data = $employees->map(function ($emp) use ($balances, $year) {
+            $b = $balances->get($emp->id);
+
+            return [
+                'employee_id' => $emp->id,
+                'nik' => $emp->nik,
+                'nama_lengkap' => $emp->nama_lengkap,
+                'jabatan' => $emp->position?->name,
+                'period_year' => $year,
+                'entitled_days' => (float) ($b->entitled_days ?? 0),
+                'adjustment_days' => (float) ($b->adjustment_days ?? 0),
+                'used_days' => (float) ($b->used_days ?? 0),
+                'remaining_days' => (float) ($b->remaining_days ?? 0),
+            ];
+        })->values();
+
+        return response()->json(['success' => true, 'data' => $data, 'meta' => ['year' => $year]]);
+    }
+
+    public function exportEmployeesExcel(Request $request)
 {
     $employees = Employee::with(['position', 'organizationalUnit'])->get();
     $rows = '';

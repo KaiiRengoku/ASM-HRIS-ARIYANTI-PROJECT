@@ -59,7 +59,7 @@ export default function KabagDashboard() {
                         <CardTitle className="text-sm font-medium">Pending</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{data?.pending ?? 0}</div>
+                        <div className="text-2xl font-bold">{data?.pending_approval ?? 0}</div>
                         <p className="text-xs text-muted-foreground">Menunggu approval</p>
                     </CardContent>
                 </Card>
@@ -68,7 +68,7 @@ export default function KabagDashboard() {
                         <CardTitle className="text-sm font-medium">Total Pengajuan</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{data?.total_requests ?? 0}</div>
+                        <div className="text-2xl font-bold">{data?.total_pengajuan ?? 0}</div>
                         <p className="text-xs text-muted-foreground">Keseluruhan</p>
                     </CardContent>
                 </Card>

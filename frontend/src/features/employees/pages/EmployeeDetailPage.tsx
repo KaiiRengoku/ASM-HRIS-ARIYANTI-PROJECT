@@ -89,6 +89,42 @@ export default function EmployeeDetailPage() {
           <ReadOnlyField label="Tanggal Masuk" value={employee.tanggal_masuk_kerja} />
           <ReadOnlyField label="Masa Kerja" value={getMasaKerja(employee.tanggal_masuk_kerja)} />
           <ReadOnlyField label="Alamat" value={employee.alamat} className="sm:col-span-2" />
+          <ReadOnlyField label="NPWP" value={employee.npwp} />
+          <ReadOnlyField label="BPJS Kesehatan" value={employee.bpjs_kesehatan} />
+          <ReadOnlyField label="BPJS Ketenagakerjaan" value={employee.bpjs_ketenagakerjaan} />
+          <ReadOnlyField label="Nomor Rekening" value={employee.nomor_rekening} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Riwayat Pendidikan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!employee.educations?.length ? (
+            <p className="text-muted-foreground">Belum ada riwayat pendidikan.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jenjang</TableHead>
+                  <TableHead>Institusi</TableHead>
+                  <TableHead>Jurusan</TableHead>
+                  <TableHead>Tahun</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {employee.educations.map((e: any, i: number) => (
+                  <TableRow key={i}>
+                    <TableCell>{e.jenjang}</TableCell>
+                    <TableCell>{e.nama_pt || '-'}</TableCell>
+                    <TableCell>{e.jurusan || '-'}</TableCell>
+                    <TableCell>{e.tahun_masuk && e.tahun_lulus ? `${e.tahun_masuk} - ${e.tahun_lulus}` : '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

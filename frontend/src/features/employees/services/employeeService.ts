@@ -39,6 +39,7 @@ export interface Employee {
   status_kepegawaian: string | null;
   nomor_rekening: string | null;
   foto_path: string | null;
+  educations?: { jenjang: string; nama_pt?: string | null; jurusan?: string | null; tahun_masuk?: string | null; tahun_lulus?: string | null }[];
   created_at: string;
   updated_at: string;
 }

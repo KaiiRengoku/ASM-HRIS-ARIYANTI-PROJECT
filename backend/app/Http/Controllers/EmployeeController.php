@@ -95,7 +95,7 @@ class EmployeeController extends Controller
         if (!$this->canViewEmployees($request)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
-        return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'user.roles']));
+        return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'user.roles', 'educations']));
     }
 
     public function update(UpdateEmployeeRequest $request, Employee $employee)

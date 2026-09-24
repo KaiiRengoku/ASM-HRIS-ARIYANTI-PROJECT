@@ -15,8 +15,8 @@ class LeaveBalanceController extends Controller
 {
     public function byEmployee(Request $request, $employeeId)
     {
-        $isHrd = $request->user()->roles()->where('code', 'HRD')->exists();
-        if (!$isHrd && (int) $employeeId !== (int) $request->user()->employee_id) {
+        $canViewAll = $request->user()->roles()->whereIn('code', ['HRD', 'KABAG', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'])->exists();
+        if (!$canViewAll && (int) $employeeId !== (int) $request->user()->employee_id) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
         $balances = LeaveBalance::with('leaveType')

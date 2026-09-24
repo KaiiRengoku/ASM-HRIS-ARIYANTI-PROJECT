@@ -41,6 +41,13 @@ class EmployeeResource extends JsonResource
             'is_dosen' => (bool) $this->is_dosen,
             'nomor_rekening' => $this->nomor_rekening,
             'foto_path' => $this->foto_path,
+            'educations' => $this->whenLoaded('educations', fn() => $this->educations->map(fn ($e) => [
+                'jenjang' => $e->jenjang,
+                'nama_pt' => $e->nama_pt,
+                'jurusan' => $e->jurusan,
+                'tahun_masuk' => $e->tahun_masuk,
+                'tahun_lulus' => $e->tahun_lulus,
+            ])),
             'has_account' => $this->whenLoaded('user', fn() => $this->user !== null),
             'account' => $this->whenLoaded('user', fn() => $this->user ? [
                 'id' => $this->user->id,

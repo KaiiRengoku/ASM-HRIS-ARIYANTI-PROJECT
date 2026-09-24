@@ -132,16 +132,18 @@ class DashboardController extends Controller
     public function kabagStats(Request $request)
     {
         $user = $request->user();
-        // Kabag sees leave requests from their subordinates.
-        // For simplicity, we assume Kabag has an employee record and we need to find subordinates.
-        // We'll use a simple approach: get all pending leaves not yet approved by Kabag.
-        // We'll assume any pending leave is for their unit.
-        // This is a placeholder - we'll just return all pending leaves for now.
-        $pending = LeaveRequest::where('status', 'Pending')->count();
-        $total = LeaveRequest::count();
+        $unitId = $user->employee?->organizational_unit_id;
+        // Kabag scope = unit organisasinya; tanpa unit terisi → global (data lama).
+        $scoped = fn() => LeaveRequest::query()->when($unitId, function ($q) use ($unitId) {
+            $q->whereHas('employee', fn($e) => $e->where('organizational_unit_id', $unitId));
+        });
 
-        $recent = LeaveRequest::with(['employee', 'leaveType'])
-            ->where('status', 'Pending')
+        $pending = $scoped()->where('status', 'Pending')->count();
+        $total = $scoped()->count();
+        $totalEmployees = $unitId ? Employee::where('organizational_unit_id', $unitId)->count() : 0;
+
+        $recent = $scoped()->where('status', 'Pending')
+            ->with(['employee', 'leaveType'])
             ->latest('created_at')
             ->limit(5)
             ->get()
@@ -161,6 +163,7 @@ class DashboardController extends Controller
             'data' => [
                 'pending_approval' => $pending,
                 'total_pengajuan' => $total,
+                'total_employees' => $totalEmployees,
                 'pengajuan_terbaru' => $recent,
             ],
         ]);
@@ -171,6 +174,7 @@ class DashboardController extends Controller
         $totalPegawai = Employee::count();
         $totalCuti = LeaveRequest::count();
         $totalPending = LeaveRequest::where('status', 'Pending')->count();
+        $totalApproved = LeaveRequest::where('status', 'Disetujui HRD')->count();
 
         return response()->json([
             'success' => true,
@@ -178,6 +182,7 @@ class DashboardController extends Controller
                 'total_pegawai' => $totalPegawai,
                 'total_cuti' => $totalCuti,
                 'total_pending' => $totalPending,
+                'total_approved' => $totalApproved,
             ],
         ]);
     }

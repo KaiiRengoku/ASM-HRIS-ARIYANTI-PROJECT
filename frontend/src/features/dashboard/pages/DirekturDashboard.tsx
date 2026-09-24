@@ -76,7 +76,7 @@ export default function DirekturDashboard() {
                         <CardTitle className="text-sm font-medium">Pending</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{data?.pending ?? 0}</div>
+                        <div className="text-2xl font-bold">{data?.total_pending ?? 0}</div>
                         <p className="text-xs text-muted-foreground">Menunggu approval</p>
                     </CardContent>
                 </Card>
@@ -85,7 +85,7 @@ export default function DirekturDashboard() {
                         <CardTitle className="text-sm font-medium">Disetujui</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{data?.approved ?? 0}</div>
+                        <div className="text-2xl font-bold">{data?.total_approved ?? 0}</div>
                         <p className="text-xs text-muted-foreground">Telah disetujui</p>
                     </CardContent>
                 </Card>
@@ -102,7 +102,7 @@ export default function DirekturDashboard() {
                         </div>
                         <div className="p-4 bg-muted/30 rounded-lg">
                             <p className="text-sm text-muted-foreground">Pending / Disetujui</p>
-                            <p className="text-2xl font-bold">{data?.pending ?? 0} / {data?.approved ?? 0}</p>
+                            <p className="text-2xl font-bold">{data?.total_pending ?? 0} / {data?.total_approved ?? 0}</p>
                         </div>
                     </div>
                 </CardContent>

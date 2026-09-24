@@ -22,6 +22,39 @@ class LeaveController extends Controller
         return $request->user()->roles()->whereIn('code', ['HRD', 'KABAG', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'])->exists();
     }
 
+    // ponytail: scope Kabag = unit organisasinya sendiri; kalau Kabag belum punya
+    // unit (data lama) fallback global. Upgrade path: tabel atasan langsung per pegawai.
+    private function kabagUnitScope(Request $request): ?int
+    {
+        $role = $request->user()->roles()->first()?->code;
+        if ($role !== 'KABAG') {
+            return null;
+        }
+        $employee = $request->user()->employee;
+        return $employee?->organizational_unit_id ? (int) $employee->organizational_unit_id : null;
+    }
+
+    private function canSeeLeave(Request $request, LeaveRequest $leave): bool
+    {
+        $user = $request->user();
+        $role = $user->roles()->first()?->code;
+        if (in_array($role, ['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'], true)) {
+            return true;
+        }
+        if ($leave->employee_id === $user->employee_id) {
+            return true;
+        }
+        if ($role === 'KABAG') {
+            $unitId = $this->kabagUnitScope($request);
+            if (!$unitId) {
+                return true;
+            }
+            $leave->loadMissing('employee');
+            return (int) ($leave->employee->organizational_unit_id ?? 0) === $unitId;
+        }
+        return false;
+    }
+
     private function ownEmployeeId(Request $request): ?int
     {
         return $request->user()->employee_id;
@@ -60,8 +93,13 @@ class LeaveController extends Controller
 
         if (!$this->canViewAll($request)) {
             $query->where('employee_id', $this->ownEmployeeId($request));
-        } elseif ($request->employee_id) {
-            $query->where('employee_id', $request->employee_id);
+        } else {
+            if ($unitId = $this->kabagUnitScope($request)) {
+                $query->whereHas('employee', fn ($q) => $q->where('organizational_unit_id', $unitId));
+            }
+            if ($request->employee_id) {
+                $query->where('employee_id', $request->employee_id);
+            }
         }
 
         if ($request->level == 1) {
@@ -190,12 +228,48 @@ class LeaveController extends Controller
             'created_at' => now(),
         ]);
 
+        $this->notifyApprovers($leave);
+
         return response()->json(['success' => true, 'data' => $leave]);
+    }
+
+    // Kebutuhan §1.5: Kabag dapat notifikasi saat ada pengajuan baru dari bawahannya.
+    // Scope Kabag per unit; kalau pengaju tidak punya unit, kabari semua Kabag.
+    private function notifyApprovers(LeaveRequest $leave): void
+    {
+        $unitId = $leave->employee->organizational_unit_id ?? null;
+
+        $kabags = \App\Models\User::whereHas('roles', fn ($q) => $q->where('code', 'KABAG'))
+            ->with('employee')
+            ->get()
+            ->filter(function ($u) use ($unitId, $leave) {
+                if ($u->employee_id === $leave->employee_id) {
+                    return false; // jangan kabari dirinya sendiri
+                }
+                if (!$unitId || !$u->employee?->organizational_unit_id) {
+                    return true; // fallback global bila unit belum terisi
+                }
+                return (int) $u->employee->organizational_unit_id === (int) $unitId;
+            });
+
+        foreach ($kabags as $kabag) {
+            $notification = Notification::create([
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'user_id' => $kabag->id,
+                'type' => 'leave_submitted',
+                'title' => 'Pengajuan Cuti Baru',
+                'message' => ($leave->employee->nama_lengkap ?? 'Pegawai') . ' mengajukan cuti dan menunggu persetujuan Anda.',
+                'data' => ['leave_id' => $leave->id],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            \App\Events\NotificationSent::dispatch($notification);
+        }
     }
 
     public function show(Request $request, LeaveRequest $leave)
     {
-        if (!$this->canViewAll($request) && $leave->employee_id !== $this->ownEmployeeId($request)) {
+        if (!$this->canSeeLeave($request, $leave)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
         return response()->json(['success' => true, 'data' => $leave->load(['employee', 'leaveType', 'approvals', 'attachments'])]);
@@ -210,6 +284,10 @@ class LeaveController extends Controller
 
         if (!$level) {
             return response()->json(['success' => false, 'message' => 'Anda tidak memiliki kewenangan.'], 403);
+        }
+
+        if (!$this->canSeeLeave($request, $leave)) {
+            return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
 
         // Check if already approved at this level
