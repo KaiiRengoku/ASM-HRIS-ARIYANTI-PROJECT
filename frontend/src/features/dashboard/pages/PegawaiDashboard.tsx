@@ -130,12 +130,12 @@ export default function PegawaiDashboard() {
                         {data?.pengajuan_terbaru?.length ? (
                             <div className="space-y-3">
                                 {data.pengajuan_terbaru.map((item: any) => (
-                                    <div key={item.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                                        <div>
-                                            <p className="font-medium">{item.leave_type}</p>
-                                            <p className="text-sm text-muted-foreground">{item.start_date} s.d {item.end_date}</p>
+                                    <div key={item.id} className="flex items-center justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0">
+                                        <div className="min-w-0">
+                                            <p className="font-medium truncate">{item.leave_type}</p>
+                                            <p className="text-sm text-muted-foreground truncate">{item.start_date} s.d {item.end_date}</p>
                                         </div>
-                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                        <span className={`shrink-0 text-xs px-2 py-1 rounded-full ${
                                             item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
                                             item.status === 'Disetujui Kepala Bagian' ? 'bg-blue-100 text-blue-800' :
                                             ['Approved', 'Disetujui HRD'].includes(item.status) ? 'bg-green-100 text-green-800' :
@@ -156,7 +156,7 @@ export default function PegawaiDashboard() {
                     <CardHeader>
                         <CardTitle>Aksi Cepat</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-2">
+                    <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <Link to="/cuti/create" className="block col-span-2">
                             <button className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
                                 Ajukan Cuti
@@ -190,12 +190,12 @@ export default function PegawaiDashboard() {
                             {data?.mengajar?.matkul?.length ? (
                                 <div className="space-y-3">
                                     {data.mengajar.matkul.map((m: any, i: number) => (
-                                        <div key={i} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                                            <div>
-                                                <p className="font-medium">{m.nama_matkul || '-'} ({m.kode_matkul || '-'})</p>
+                                        <div key={i} className="flex items-center justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0">
+                                            <div className="min-w-0">
+                                                <p className="font-medium truncate">{m.nama_matkul || '-'} ({m.kode_matkul || '-'})</p>
                                                 <p className="text-sm text-muted-foreground">Kelas {m.kelas || '-'}</p>
                                             </div>
-                                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">{m.sks ?? 0} SKS</span>
+                                            <span className="shrink-0 text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">{m.sks ?? 0} SKS</span>
                                         </div>
                                     ))}
                                 </div>
@@ -224,9 +224,9 @@ export default function PegawaiDashboard() {
                     <CardContent>
                         <div className="space-y-3">
                             {data.libur_terdekat.map((h: any, i: number) => (
-                                <div key={i} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                                    <p className="font-medium">{h.name}</p>
-                                    <p className="text-sm text-muted-foreground">{h.date}</p>
+                                <div key={i} className="flex items-center justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0">
+                                    <p className="font-medium truncate min-w-0">{h.name}</p>
+                                    <p className="shrink-0 text-sm text-muted-foreground">{h.date}</p>
                                 </div>
                             ))}
                         </div>

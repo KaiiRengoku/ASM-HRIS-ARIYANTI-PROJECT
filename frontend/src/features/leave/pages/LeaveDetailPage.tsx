@@ -67,13 +67,13 @@ export default function LeaveDetailPage() {
     if (error || !leave) return <div className="p-6 text-destructive">Data tidak ditemukan.</div>;
 
     return (
-        <div className="max-w-3xl mx-auto p-6 space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="max-w-3xl mx-auto space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <h1 className="text-2xl font-bold">Detail Pengajuan Cuti</h1>
-<Link to="/cuti">
+          <div className="flex flex-wrap gap-2">
+          <Link to="/cuti">
             <Button variant="outline">Kembali</Button>
           </Link>
-          <div className="flex gap-2">
           {isHrd && ['Pending', 'Disetujui Kepala Bagian'].includes(leave.status) && (
             <Link to={`/cuti/${id}/edit`}>
               <Button>Edit</Button>

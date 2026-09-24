@@ -95,7 +95,7 @@ export default function DirekturDashboard() {
                     <CardTitle>Ringkasan Cuti</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="p-4 bg-muted/30 rounded-lg">
                             <p className="text-sm text-muted-foreground">Total Pengajuan</p>
                             <p className="text-2xl font-bold">{data?.total_cuti ?? 0}</p>

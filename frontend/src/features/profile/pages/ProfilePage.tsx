@@ -287,10 +287,10 @@ export default function ProfilePage() {
     if (!profile) return <div className="p-6 text-destructive">Gagal memuat data.</div>;
 
     return (
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <h1 className="text-2xl font-bold">Profil Saya</h1>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <Link to="/profile/password">
                         <Button variant="outline">Ganti Kata Sandi</Button>
                     </Link>

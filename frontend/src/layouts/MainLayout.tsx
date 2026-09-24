@@ -1,7 +1,8 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { LogOut, User, Bell } from "lucide-react";
+import { useState } from "react";
+import { LogOut, User, Bell, Menu } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar, { MobileSidebar } from "@/components/layout/Sidebar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/stores/authStore";
 import { logout as logoutService } from "@/features/auth/services/authService";
@@ -16,6 +17,7 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const { user, logout: logoutStore } = useAuthStore();
   const queryClient = useQueryClient();
+  const [menuOpen, setMenuOpen] = useState(false);
   const { data } = useQuery({ queryKey: ["notifications-latest"], queryFn: fetchLatest });
 
   const readOne = useMutation({
@@ -36,10 +38,18 @@ export default function MainLayout() {
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
+      <MobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-          <div className="h-full px-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="h-full px-4 sm:px-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMenuOpen(true)}
+                aria-label="Buka menu"
+                className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
               <h1 className="text-lg font-semibold text-foreground">ASM HRIS</h1>
             </div>
             <div className="flex items-center gap-4">
@@ -109,7 +119,7 @@ export default function MainLayout() {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-4 sm:p-6 overflow-auto">
           <Outlet />
         </main>
       </div>

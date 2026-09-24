@@ -103,12 +103,12 @@ export default function KabagDashboard() {
                     {data?.pengajuan_terbaru?.length ? (
                         <div className="space-y-3">
                             {data.pengajuan_terbaru.map((item: any) => (
-                                <div key={item.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                                    <div>
-                                        <p className="font-medium">{item.employee_name}</p>
-                                        <p className="text-sm text-muted-foreground">{item.leave_type} · {item.start_date} s.d {item.end_date}</p>
+                                <div key={item.id} className="flex items-center justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0">
+                                    <div className="min-w-0">
+                                        <p className="font-medium truncate">{item.employee_name}</p>
+                                        <p className="text-sm text-muted-foreground truncate">{item.leave_type} · {item.start_date} s.d {item.end_date}</p>
                                     </div>
-                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                    <span className={`shrink-0 text-xs px-2 py-1 rounded-full ${
                                         item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
                                         item.status === 'Disetujui Kepala Bagian' ? 'bg-blue-100 text-blue-800' :
                                         ['Approved', 'Disetujui HRD'].includes(item.status) ? 'bg-green-100 text-green-800' :

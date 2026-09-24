@@ -138,8 +138,8 @@ export default function WorkSchedulePage() {
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
     return (
-        <div className="space-y-6 p-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold">Jam Kerja</h1>
                     <p className="text-muted-foreground">Kelola konfigurasi jam kerja</p>
@@ -181,7 +181,7 @@ export default function WorkSchedulePage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <Label>Jam Mulai</Label>
                                     <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />

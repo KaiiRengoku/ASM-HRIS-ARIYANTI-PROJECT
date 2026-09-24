@@ -116,7 +116,7 @@ export default function EmployeeFormPage() {
   if (isEdit && loadingExisting) return <div className="p-6">Memuat data...</div>;
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">{isEdit ? 'Edit' : 'Tambah'} Pegawai</h1>
       <Card>
         <CardHeader>

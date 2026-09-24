@@ -135,7 +135,7 @@ export default function LeaveListPage() {
     const meta = data?.meta;
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Cuti & Izin</h1>
@@ -214,7 +214,7 @@ export default function LeaveListPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div className="space-y-2">
                                         <Label>Tanggal Mulai</Label>
                                         <Input type="date" value={createForm.start_date} onChange={(e) => setCreateForm((f: any) => ({ ...f, start_date: e.target.value }))} required />
@@ -320,7 +320,8 @@ export default function LeaveListPage() {
                                                 'bg-gray-100 text-gray-800'
                                             }`}>{leave.status}</span>
                                         </TableCell>
-                                        <TableCell className="text-right space-x-2">
+                                        <TableCell className="text-right">
+                                            <div className="flex flex-wrap justify-end gap-2">
                                             <Link to={`/cuti/${leave.id}`}><Button variant="outline" size="sm">Detail</Button></Link>
                                             {isHrd && ['Pending', 'Disetujui Kepala Bagian'].includes(leave.status) && (
                                                 <Link to={`/cuti/${leave.id}/edit`}><Button variant="outline" size="sm">Edit</Button></Link>
@@ -340,6 +341,7 @@ export default function LeaveListPage() {
                                             {isHrd && (
                                                 <Button variant="destructive" size="sm" onClick={() => { setDeleteId(leave.id); setDeleteReason(''); }}>Hapus</Button>
                                             )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -381,7 +383,7 @@ export default function LeaveListPage() {
             </Dialog>
 
             {meta && meta.last_page > 1 && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-muted-foreground">Halaman {meta.current_page} dari {meta.last_page}</p>
                     <div className="space-x-2">
                         <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Sebelumnya</Button>

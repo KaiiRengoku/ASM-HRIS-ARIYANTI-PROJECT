@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
-import { LayoutDashboard, Users, FileText, CalendarDays, ClipboardCheck, Calendar, BarChart3, History } from "lucide-react";
+import { LayoutDashboard, Users, FileText, CalendarDays, ClipboardCheck, Calendar, BarChart3, History, X } from "lucide-react";
 import logo from "@/assets/logo_asm.png";
 
 const ALL = ["PEG", "HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG"];
@@ -16,7 +16,7 @@ const menuItems = [
   { label: "Laporan", href: "/laporan", icon: BarChart3, roles: LEADERS },
 ];
 
-export default function Sidebar() {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { hasRole } = useAuthStore();
 
   const userRoles = hasRole("HRD") ? ["HRD"] : hasRole("DIREKTUR") ? ["DIREKTUR"] : hasRole("PD_I") ? ["PD_I"] : hasRole("PD_II") ? ["PD_II"] : hasRole("PD_III") ? ["PD_III"] : hasRole("KABAG") ? ["KABAG"] : ["PEG"];
@@ -34,7 +34,7 @@ export default function Sidebar() {
   const filteredMenu = menuItems.filter((item) => item.roles.some((r) => userRoles.includes(r)));
 
   return (
-    <aside className="w-64 border-r border-border bg-background h-screen sticky top-0 flex flex-col">
+    <>
       <div className="p-4 border-b border-border flex items-center gap-3">
         <img src={logo} alt="ASM HRIS Logo" className="h-8 w-auto" />
         <div>
@@ -42,7 +42,7 @@ export default function Sidebar() {
           <p className="text-xs text-muted-foreground">Sistem Informasi Kepegawaian</p>
         </div>
       </div>
-      <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto" onClick={onNavigate}>
         {filteredMenu.map((item) => {
           const href = item.label === "Dashboard" ? dashboardHref : (item.href || "/");
           const Icon = item.icon;
@@ -67,6 +67,7 @@ export default function Sidebar() {
       {hasRole("HRD") && (
         <NavLink
           to="/audit-logs"
+          onClick={onNavigate}
           className={({ isActive }) =>
             `flex items-center gap-3 w-full px-5 py-2.5 rounded-none text-sm font-medium transition-colors border-t border-border ${
               isActive
@@ -82,6 +83,33 @@ export default function Sidebar() {
       <div className="p-4 border-t border-border">
         <div className="text-xs text-muted-foreground">v1.0.0</div>
       </div>
+    </>
+  );
+}
+
+export default function Sidebar() {
+  return (
+    <aside className="hidden lg:flex w-64 shrink-0 border-r border-border bg-background h-screen sticky top-0 flex-col">
+      <SidebarContent />
     </aside>
+  );
+}
+
+export function MobileSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <aside className="relative flex flex-col h-full w-64 max-w-[80vw] border-r border-border bg-background">
+        <button
+          onClick={onClose}
+          aria-label="Tutup menu"
+          className="absolute right-2 top-2 p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <SidebarContent onNavigate={onClose} />
+      </aside>
+    </div>
   );
 }

@@ -160,8 +160,8 @@ export default function CalendarPage() {
     if (error) return <div className="p-6 text-destructive">Gagal memuat data.</div>;
 
     return (
-        <div className="space-y-6 p-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold">Kalender Kerja</h1>
                     <p className="text-muted-foreground">Kelola hari libur dan cuti bersama</p>
@@ -204,7 +204,7 @@ export default function CalendarPage() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div className="space-y-2">
                                         <Label>Jam Mulai</Label>
                                         <Input type="time" value={wsStart} onChange={(e) => setWsStart(e.target.value)} required />
@@ -338,10 +338,12 @@ export default function CalendarPage() {
                                         <TableCell>{h.notes || '-'}</TableCell>
                                         <TableCell>{h.is_active ? 'Aktif' : 'Nonaktif'}</TableCell>
                                         {isHrd && (
-                                        <TableCell className="text-right space-x-2">
+                                        <TableCell className="text-right">
+                                            <div className="flex flex-wrap justify-end gap-2">
                                             <Button variant="outline" size="sm" onClick={() => openEdit(h)}>Edit</Button>
                                             <Button variant="outline" size="sm" onClick={() => toggleHolidayMutation.mutate(h.id)}>{h.is_active ? 'Nonaktifkan' : 'Aktifkan'}</Button>
                                             <Button variant="destructive" size="sm" onClick={() => { if (confirm('Hapus hari libur ini?')) deleteMutation.mutate(h.id); }}>Hapus</Button>
+                                            </div>
                                         </TableCell>
                                         )}
                                     </TableRow>

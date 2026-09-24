@@ -132,7 +132,7 @@ export default function LeaveFormPage() {
                             </Select>
                             {errors.leave_type_id && <p className="text-sm text-destructive">{errors.leave_type_id.message}</p>}
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
                                 <Label>Tanggal Mulai</Label>
                                 <Input type="date" {...register('start_date')} />

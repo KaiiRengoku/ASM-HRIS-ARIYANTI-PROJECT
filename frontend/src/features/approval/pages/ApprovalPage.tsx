@@ -78,7 +78,7 @@ export default function ApprovalPage() {
     const list = approvals || [];
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold">Approval</h1>
                 <p className="text-muted-foreground">
@@ -112,7 +112,8 @@ export default function ApprovalPage() {
                                         <TableCell>{item.start_date} s.d {item.end_date}</TableCell>
                                         <TableCell>{item.total_days}</TableCell>
                                         <TableCell>{item.reason || '-'}</TableCell>
-                                        <TableCell className="text-right space-x-2">
+                                        <TableCell className="text-right">
+                                            <div className="flex flex-wrap justify-end gap-2">
                                             <Button
                                                 size="sm"
                                                 onClick={() => handleApprove(item.id)}
@@ -128,6 +129,7 @@ export default function ApprovalPage() {
                                             >
                                                 Tolak
                                             </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))

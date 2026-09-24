@@ -25,7 +25,7 @@ export default function AuditLogPage() {
     const meta = data?.meta;
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6">
             <h1 className="text-2xl font-bold">Audit Trail</h1>
             <p className="text-muted-foreground">Catatan aktivitas sistem</p>
 
@@ -61,7 +61,7 @@ export default function AuditLogPage() {
             </Card>
 
             {meta && meta.last_page > 1 && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-muted-foreground">Halaman {meta.current_page} dari {meta.last_page}</p>
                     <div className="space-x-2">
                         <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Sebelumnya</Button>

@@ -126,8 +126,8 @@ export default function EmployeeListPage() {
   const meta = data?.meta;
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Data Pegawai</h1>
           <p className="text-muted-foreground">Kelola data pegawai, dosen, dan akun login</p>
@@ -393,7 +393,7 @@ export default function EmployeeListPage() {
       </Dialog>
 
       {meta && meta.last_page > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
             Menampilkan {meta.current_page} dari {meta.last_page} halaman
           </p>

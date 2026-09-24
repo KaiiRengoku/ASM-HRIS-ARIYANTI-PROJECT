@@ -102,8 +102,8 @@ export default function DocumentListPage() {
     const meta = data?.meta;
 
     return (
-        <div className="space-y-6 p-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold">Dokumen Pegawai</h1>
                     <p className="text-muted-foreground">Kelola dokumen pegawai</p>
@@ -222,7 +222,8 @@ export default function DocumentListPage() {
                                         <TableCell>{doc.file_name}</TableCell>
                                         <TableCell>{(doc.file_size / 1024).toFixed(1)} KB</TableCell>
                                         <TableCell>{new Date(doc.created_at).toLocaleDateString()}</TableCell>
-                                        <TableCell className="text-right space-x-2">
+                                        <TableCell className="text-right">
+                                            <div className="flex flex-wrap justify-end gap-2">
                                             <Button variant="outline" size="sm" onClick={() => downloadDocument(doc)}>Unduh</Button>
                                             <Button
                                                 variant="destructive"
@@ -231,6 +232,7 @@ export default function DocumentListPage() {
                                             >
                                                 Hapus
                                             </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -241,7 +243,7 @@ export default function DocumentListPage() {
             </Card>
 
             {meta && meta.last_page > 1 && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-muted-foreground">
                         Halaman {meta.current_page} dari {meta.last_page}
                     </p>
