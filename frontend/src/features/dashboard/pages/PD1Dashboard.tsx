@@ -7,7 +7,7 @@ const fetchStats = async () => {
     return res.data.data;
 };
 
-export default function PD1Dashboard() {
+export default function PD1Dashboard({ title = 'Dashboard Pembantu Direktur I' }: { title?: string }) {
     const { data, isLoading, error } = useQuery({
         queryKey: ['dashboard-stats'],
         queryFn: fetchStats,
@@ -17,7 +17,7 @@ export default function PD1Dashboard() {
         return (
             <div className="space-y-6">
                 <div>
-                    <h1 className="text-2xl font-bold">Dashboard Pembantu Direktur I</h1>
+                    <h1 className="text-2xl font-bold">{title}</h1>
                     <p className="text-muted-foreground">Memuat data...</p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -40,7 +40,7 @@ export default function PD1Dashboard() {
     if (error) {
         return (
             <div className="space-y-6">
-                <h1 className="text-2xl font-bold">Dashboard Pembantu Direktur I</h1>
+                <h1 className="text-2xl font-bold">{title}</h1>
                 <p className="text-destructive">Gagal memuat data. Coba refresh.</p>
             </div>
         );
@@ -49,7 +49,7 @@ export default function PD1Dashboard() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold">Dashboard Pembantu Direktur I</h1>
+                <h1 className="text-2xl font-bold">{title}</h1>
                 <p className="text-muted-foreground">Monitoring lingkungan akademik</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -95,7 +95,7 @@ export default function PD1Dashboard() {
                     <CardTitle>Informasi Akademik</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="p-4 bg-muted/30 rounded-lg">
                             <p className="text-sm text-muted-foreground">Total Dosen</p>
                             <p className="text-2xl font-bold">{data?.total_dosen ?? 0}</p>
