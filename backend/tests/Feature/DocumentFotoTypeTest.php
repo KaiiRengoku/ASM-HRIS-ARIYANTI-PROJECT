@@ -30,7 +30,7 @@ class DocumentFotoTypeTest extends TestCase
             'password' => 'password',
             'employee_id' => $employee->id,
         ]);
-        $role = Role::create(['name' => 'HRD', 'code' => 'HRD']);
+        $role = Role::firstOrCreate(['code' => 'HRD'], ['name' => 'HRD']);
         $user->roles()->attach($role->id);
 
         $this->actingAs($user)->postJson('/api/documents', [

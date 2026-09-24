@@ -28,7 +28,7 @@ class HolidayCreatedByGuardTest extends TestCase
             'password' => 'password',
             'employee_id' => $employee->id,
         ]);
-        $role = Role::create(['name' => 'HRD', 'code' => 'HRD']);
+        $role = Role::firstOrCreate(['code' => 'HRD'], ['name' => 'HRD']);
         $user->roles()->attach($role->id);
 
         $other = User::create([

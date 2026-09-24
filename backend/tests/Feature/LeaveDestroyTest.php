@@ -39,7 +39,7 @@ class LeaveDestroyTest extends TestCase
             'password' => 'password',
             'employee_id' => $hrdEmp->id,
         ]);
-        $role = Role::create(['name' => 'HRD', 'code' => 'HRD']);
+        $role = Role::firstOrCreate(['code' => 'HRD'], ['name' => 'HRD']);
         $user->roles()->attach($role->id);
         $this->hrdUser = $user;
 

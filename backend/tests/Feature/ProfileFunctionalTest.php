@@ -52,7 +52,7 @@ class ProfileFunctionalTest extends TestCase
         $user->save();
 
         if ($isHrd) {
-            $role = Role::create(['name' => 'HRD', 'code' => 'HRD']);
+            $role = Role::firstOrCreate(['code' => 'HRD'], ['name' => 'HRD']);
             $user->roles()->attach($role->id);
         }
 
