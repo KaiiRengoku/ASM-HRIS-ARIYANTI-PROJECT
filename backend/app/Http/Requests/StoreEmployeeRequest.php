@@ -42,6 +42,7 @@ class StoreEmployeeRequest extends FormRequest
             'tanggal_lahir' => ['nullable', 'date'],
             'tanggal_masuk_kerja' => ['required', 'date'],
             'status_kepegawaian' => ['nullable', 'string', 'max:50'],
+            'is_dosen' => ['nullable', 'boolean'],
             'nomor_rekening' => ['nullable', 'string', 'max:50'],
         ];
     }

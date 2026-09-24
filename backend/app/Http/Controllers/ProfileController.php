@@ -10,7 +10,7 @@ class ProfileController extends Controller
 {
     private function isDosen($employee): bool
     {
-        return $employee?->position?->code === 'DOSEN';
+        return (bool) $employee?->is_dosen;
     }
 
     public function show(Request $request)

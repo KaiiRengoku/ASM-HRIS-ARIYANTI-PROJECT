@@ -32,6 +32,7 @@ class Employee extends Model
         'tanggal_lahir',
         'tanggal_masuk_kerja',
         'status_kepegawaian',
+        'is_dosen',
         'nomor_rekening',
         'foto_path',
     ];
@@ -39,6 +40,7 @@ class Employee extends Model
     protected $casts = [
         'tanggal_lahir' => 'date',
         'tanggal_masuk_kerja' => 'date',
+        'is_dosen' => 'boolean',
     ];
 
     public function user()

@@ -23,6 +23,7 @@ class ProfileSelfServiceTest extends TestCase
             'nama_lengkap' => 'Pegawai ' . $jenisPegawai,
             'email' => strtolower($jenisPegawai) . $nik . '@asm-ariyanti.ac.id',
             'position_id' => $positionId,
+            'is_dosen' => $jenisPegawai === 'Dosen',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 

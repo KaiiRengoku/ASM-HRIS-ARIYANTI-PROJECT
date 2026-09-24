@@ -16,7 +16,7 @@ class DashboardController extends Controller
 {
     private function isDosen(?Employee $employee): bool
     {
-        return $employee?->position?->code === 'DOSEN';
+        return (bool) $employee?->is_dosen;
     }
 
     public function hrdStats(Request $request)
@@ -186,13 +186,13 @@ class DashboardController extends Controller
     {
         // PD1/2/3 see academic staff data. For simplicity, we return similar to direktur.
         // Could filter by unit later.
-        $totalPegawai = Employee::whereHas('position', fn ($q) => $q->where('code', 'DOSEN'))->count();
-        $totalCuti = LeaveRequest::whereHas('employee.position', function ($q) {
-            $q->where('code', 'DOSEN');
+        $totalPegawai = Employee::where('is_dosen', true)->count();
+        $totalCuti = LeaveRequest::whereHas('employee', function ($q) {
+            $q->where('is_dosen', true);
         })->count();
         $totalPending = LeaveRequest::where('status', 'Pending')
-            ->whereHas('employee.position', function ($q) {
-                $q->where('code', 'DOSEN');
+            ->whereHas('employee', function ($q) {
+                $q->where('is_dosen', true);
             })->count();
 
         return response()->json([

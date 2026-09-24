@@ -63,7 +63,7 @@ class CalendarController extends Controller
         ]);
 
         $old = $holiday->only(['date', 'name', 'holiday_type', 'is_active']);
-        $holiday->update($request->all());
+        $holiday->update($request->only(['date', 'name', 'holiday_type', 'notes', 'is_active']));
         $this->audit($request, 'UPDATE_HOLIDAY', Holiday::class, $holiday->id, $old, $holiday->only(['date', 'name', 'holiday_type', 'is_active']));
         return response()->json(['success' => true, 'data' => $holiday]);
     }

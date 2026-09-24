@@ -146,6 +146,7 @@ export default function DocumentListPage() {
                                         <SelectItem value="KK">KK</SelectItem>
                                         <SelectItem value="NPWP">NPWP</SelectItem>
                                         <SelectItem value="SK Pengangkatan">SK Pengangkatan</SelectItem>
+                                        <SelectItem value="Foto">Foto</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

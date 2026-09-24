@@ -10,7 +10,7 @@ class ProfileTeachingAssignmentController extends Controller
 {
     private function isDosen($employee): bool
     {
-        return $employee?->position?->code === 'DOSEN';
+        return (bool) $employee?->is_dosen;
     }
 
     public function index(Request $request)

@@ -29,6 +29,7 @@ class BiodataSectionsTest extends TestCase
             'nama_lengkap' => 'Dosen Contoh',
             'email' => 'dosen@example.com',
             'position_id' => $dosenPositionId,
+            'is_dosen' => true,
             'tanggal_masuk_kerja' => '2020-01-15',
             'tempat_lahir' => 'Jakarta',
             'alamat_domisili' => 'Jl. Domisili 2',

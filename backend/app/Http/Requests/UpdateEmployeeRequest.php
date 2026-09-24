@@ -21,7 +21,7 @@ class UpdateEmployeeRequest extends FormRequest
         return [
             'organizational_unit_id' => ['nullable', 'exists:organizational_units,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
-            'nik' => ['required', 'string', 'size:16', 'regex:/^[0-9]{16}$/', Rule::unique('employees', 'nik')->ignore($id)],
+            'nik' => ['required', 'string', 'size:16', 'regex:/^[0-9]{16}$/', Rule::unique('employees', 'nik')->ignore($id), Rule::unique('users', 'nik')->ignore($userId)],
             'nama_lengkap' => ['required', 'string', 'max:150'],
             'gelar_depan' => ['nullable', 'string', 'max:50'],
             'gelar_belakang' => ['nullable', 'string', 'max:50'],
@@ -44,6 +44,7 @@ class UpdateEmployeeRequest extends FormRequest
             'tanggal_lahir' => ['nullable', 'date'],
             'tanggal_masuk_kerja' => ['sometimes', 'required', 'date'],
             'status_kepegawaian' => ['nullable', 'string', 'max:50'],
+            'is_dosen' => ['nullable', 'boolean'],
             'nomor_rekening' => ['nullable', 'string', 'max:50'],
         ];
     }

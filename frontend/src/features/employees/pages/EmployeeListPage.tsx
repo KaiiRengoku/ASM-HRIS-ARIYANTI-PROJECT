@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ReadOnlyField } from '@/components/ui/read-only-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../services/employeeService';
@@ -19,7 +20,7 @@ const emptyForm = {
   nik: '', nama_lengkap: '', email: '', nomor_hp: '',
   jenis_kelamin: '', status_kepegawaian: 'aktif',
   tanggal_masuk_kerja: '', nip: '', nidn: '', alamat: '',
-  password: '', role: 'PEG', position_id: '',
+  password: '', role: 'PEG', position_id: '', is_dosen: false,
 };
 
 export default function EmployeeListPage() {
@@ -46,6 +47,7 @@ export default function EmployeeListPage() {
   const { data: roles } = useQuery({
     queryKey: ['roles'],
     queryFn: async () => (await api.get('/roles')).data.data,
+    enabled: isHrd,
   });
 
   const { data: positions } = useQuery({
@@ -105,6 +107,7 @@ export default function EmployeeListPage() {
       tanggal_masuk_kerja: emp.tanggal_masuk_kerja || '', nip: emp.nip || '',
       nidn: emp.nidn || '', alamat: emp.alamat || '',
       password: '', role: emp.account?.role || 'PEG', position_id: emp.position_id ? String(emp.position_id) : '',
+      is_dosen: !!emp.is_dosen,
     });
     setOpen(true);
   };
@@ -196,6 +199,10 @@ export default function EmployeeListPage() {
                 <Label>Alamat</Label>
                 <Input value={form.alamat} onChange={(e) => set('alamat', e.target.value)} />
               </div>
+              <Label className="flex items-center gap-2 cursor-pointer font-normal">
+                <Checkbox checked={!!form.is_dosen} onCheckedChange={(v) => set('is_dosen', v === true)} />
+                Dosen (masuk hitungan lingkungan akademik)
+              </Label>
               {!editId && (
                 <div className="space-y-4 border-t pt-4">
                   <p className="text-sm font-medium">Akun Login (otomatis dibuat, login pakai NIK + kata sandi)</p>
