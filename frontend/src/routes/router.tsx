@@ -29,6 +29,7 @@ import WorkSchedulePage from "@/features/work-schedule/pages/WorkSchedulePage";
 import AuditLogPage from "@/features/audit/pages/AuditLogPage";
 import ProfilePage from "@/features/profile/pages/ProfilePage";
 import ChangePasswordPage from "@/features/profile/pages/ChangePasswordPage";
+import HakAksesPage from "@/features/access/pages/HakAksesPage";
 
 const HRD = ["HRD"];
 const HRD_DIREKTUR_PD = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III"];
@@ -59,6 +60,7 @@ const protectedRoutes = [
   { path: "/cuti/saldo/adjust", element: <LeaveBalanceAdjustPage />, roles: HRD },
   { path: "/work-schedules", element: <WorkSchedulePage />, roles: ALL_ROLES },
   { path: "/audit-logs", element: <AuditLogPage />, roles: HRD },
+  { path: "/hak-akses", element: <HakAksesPage />, roles: HRD },
   { path: "/profile", element: <ProfilePage />, roles: ALL_ROLES },
   { path: "/profile/password", element: <ChangePasswordPage />, roles: ALL_ROLES },
 ];
