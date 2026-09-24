@@ -467,6 +467,67 @@ class LeaveController extends Controller
 
     // HRD can adjust balance manually (already in request)
 
+    public function destroy(Request $request, LeaveRequest $leave)
+    {
+        $user = $request->user();
+        $role = $user->roles->first()->code ?? null;
+        if ($role !== 'HRD') {
+            return response()->json(['success' => false, 'message' => 'Hanya HRD yang dapat menghapus cuti.'], 403);
+        }
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string'],
+        ], [
+            'reason.required' => 'Alasan penghapusan wajib diisi.',
+            'reason.string' => 'Alasan penghapusan harus berupa teks.',
+        ]);
+
+        $wasFinal = $leave->status === 'Disetujui HRD';
+        $old = $leave->only(['employee_id', 'leave_type_id', 'start_date', 'end_date', 'total_days', 'status']);
+        $leaveId = $leave->id;
+
+        DB::transaction(function () use ($leave, $leaveId, $old, $wasFinal, $user, $request, $validated) {
+            if ($wasFinal) {
+                $deduct = LeaveBalanceTransaction::where('leave_request_id', $leaveId)
+                    ->where('transaction_type', 'DEDUCT')->first();
+                if ($deduct) {
+                    $balance = LeaveBalance::find($deduct->leave_balance_id);
+                    if ($balance) {
+                        $balance->used_days = max(0, $balance->used_days - $leave->total_days);
+                        $balance->remaining_days = $balance->entitled_days + $balance->adjustment_days - $balance->used_days;
+                        $balance->save();
+                    }
+                }
+            }
+
+            LeaveBalanceTransaction::where('leave_request_id', $leaveId)->delete();
+
+            foreach ($leave->attachments as $attachment) {
+                if (\Illuminate\Support\Facades\Storage::disk($attachment->storage_disk)->exists($attachment->storage_path)) {
+                    \Illuminate\Support\Facades\Storage::disk($attachment->storage_disk)->delete($attachment->storage_path);
+                }
+            }
+
+            $this->notifyLeaveStatus($leave, $user, 'Dihapus', 'Pengajuan cuti Anda dihapus oleh HRD. Alasan: ' . $validated['reason']);
+
+            AuditLog::create([
+                'user_id' => $user->id,
+                'action' => 'DELETE_LEAVE',
+                'auditable_type' => LeaveRequest::class,
+                'auditable_id' => $leaveId,
+                'old_values' => $old,
+                'new_values' => ['deleted' => true, 'reason' => $validated['reason']],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+            ]);
+
+            $leave->delete();
+        });
+
+        return response()->json(['success' => true, 'message' => 'Histori cuti dihapus permanen.']);
+    }
+
     public function downloadAttachment(Request $request, \App\Models\LeaveAttachment $attachment)
     {
         $leave = $attachment->leaveRequest;

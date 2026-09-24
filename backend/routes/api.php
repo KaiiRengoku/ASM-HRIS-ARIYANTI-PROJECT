@@ -61,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('audit-logs', [AuditLogController::class, 'index']);
         Route::post('leave-attachments/{attachment}/verify', [LeaveController::class, 'verifyAttachment']);
         Route::put('leaves/{leave}', [LeaveController::class, 'update']);
+        Route::delete('leaves/{leave}', [LeaveController::class, 'destroy']);
     });
 
     Route::middleware('role:HRD,DIREKTUR,PD_I,PD_II,PD_III')->group(function () {

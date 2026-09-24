@@ -22,6 +22,7 @@ const fetchLeaves = async (params: { page?: number; search?: string; status?: st
 const approveLeave = async (id: number) => { await api.post(`/leaves/${id}/approve`); };
 const rejectLeave = async ({ id, reason }: { id: number; reason: string }) => { await api.post(`/leaves/${id}/reject`, { reason }); };
 const cancelLeave = async (id: number) => { await api.post(`/leaves/${id}/cancel`); };
+const deleteLeave = async ({ id, reason }: { id: number; reason: string }) => { await api.delete(`/leaves/${id}`, { data: { reason } }); };
 
 export default function LeaveListPage() {
     const [search, setSearch] = useState('');
@@ -29,6 +30,8 @@ export default function LeaveListPage() {
     const [statusFilter, setStatusFilter] = useState('');
     const [rejectId, setRejectId] = useState<number | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [deleteId, setDeleteId] = useState<number | null>(null);
+    const [deleteReason, setDeleteReason] = useState('');
     const [createOpen, setCreateOpen] = useState(false);
     const [adjustOpen, setAdjustOpen] = useState(false);
     const [createForm, setCreateForm] = useState<any>({ employee_id: '', leave_type_id: '', start_date: '', end_date: '', reason: '', emergency_address: '', emergency_contact: '', is_emergency: false, emergency_reason: '' });
@@ -75,6 +78,12 @@ export default function LeaveListPage() {
         mutationFn: cancelLeave,
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['leaves'] }); toast({ title: 'Berhasil', description: 'Pengajuan dibatalkan.' }); },
         onError: () => toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' }),
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: deleteLeave,
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['leaves'] }); toast({ title: 'Berhasil', description: 'Histori cuti dihapus permanen.' }); setDeleteId(null); setDeleteReason(''); },
+        onError: (e: any) => toast({ title: 'Gagal', description: e.response?.data?.message || 'Terjadi kesalahan.', variant: 'destructive' }),
     });
 
     const createMutation = useMutation({
@@ -328,6 +337,9 @@ export default function LeaveListPage() {
                                             {['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'].includes(leave.status) && (
                                                 <Button variant="outline" size="sm" onClick={() => { if (confirm('Batalkan pengajuan cuti ini?')) cancelMutation.mutate(leave.id); }}>Batalkan</Button>
                                             )}
+                                            {isHrd && (
+                                                <Button variant="destructive" size="sm" onClick={() => { setDeleteId(leave.id); setDeleteReason(''); }}>Hapus</Button>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -347,6 +359,22 @@ export default function LeaveListPage() {
                                 {rejectMutation.isPending ? 'Mengirim...' : 'Kirim'}
                             </Button>
                             <Button variant="outline" onClick={() => { setRejectId(null); setRejectReason(''); }}>Batal</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={deleteId !== null} onOpenChange={(v) => { if (!v) { setDeleteId(null); setDeleteReason(''); } }}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Hapus Histori Cuti</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Data dihapus permanen dari database dan tidak dapat dikembalikan. Saldo cuti yang terpotong akan dikembalikan bila pengajuan sudah final.</p>
+                        <Textarea placeholder="Tulis alasan penghapusan..." value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} />
+                        <div className="flex gap-2">
+                            <Button variant="destructive" onClick={() => deleteId && deleteMutation.mutate({ id: deleteId, reason: deleteReason })} disabled={deleteMutation.isPending || !deleteReason.trim()}>
+                                {deleteMutation.isPending ? 'Menghapus...' : 'Hapus Permanen'}
+                            </Button>
+                            <Button variant="outline" onClick={() => { setDeleteId(null); setDeleteReason(''); }}>Batal</Button>
                         </div>
                     </div>
                 </DialogContent>
