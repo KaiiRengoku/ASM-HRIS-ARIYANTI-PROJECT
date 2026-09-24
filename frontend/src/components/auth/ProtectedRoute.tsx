@@ -4,8 +4,8 @@ import { getUser } from "@/features/auth/services/authService";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-export default function ProtectedRoute({ roles, children }: { roles?: string[]; children?: React.ReactNode }) {
-  const { isAuthenticated, user, token, setAuth, logout, hasRole } = useAuthStore();
+export default function ProtectedRoute({ roles, permissions, children }: { roles?: string[]; permissions?: string[]; children?: React.ReactNode }) {
+  const { isAuthenticated, user, token, setAuth, logout, hasRole, hasPermission } = useAuthStore();
   const location = useLocation();
   const [isVerifying, setIsVerifying] = useState(true);
 
@@ -42,6 +42,10 @@ export default function ProtectedRoute({ roles, children }: { roles?: string[]; 
   }
 
   if (roles && roles.length > 0 && !roles.some((r) => hasRole(r))) {
+    return <Navigate to="/403" replace />;
+  }
+
+  if (permissions && permissions.length > 0 && !permissions.some((p) => hasPermission(p))) {
     return <Navigate to="/403" replace />;
   }
 

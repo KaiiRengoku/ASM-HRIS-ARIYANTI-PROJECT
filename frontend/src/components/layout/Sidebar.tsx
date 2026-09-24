@@ -7,17 +7,17 @@ const ALL = ["PEG", "HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG"];
 const LEADERS = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III"];
 
 const menuItems = [
-  { label: "Dashboard", href: null, icon: LayoutDashboard, roles: ALL },
-  { label: "Pegawai", href: "/pegawai", icon: Users, roles: LEADERS },
-  { label: "Dokumen", href: "/dokumen", icon: FileText, roles: ALL },
-  { label: "Cuti & Izin", href: "/cuti", icon: CalendarDays, roles: ALL },
-  { label: "Approval", href: "/approval", icon: ClipboardCheck, roles: ["HRD", "KABAG"] },
-  { label: "Kalender", href: "/kalender", icon: Calendar, roles: ALL },
-  { label: "Laporan", href: "/laporan", icon: BarChart3, roles: LEADERS },
+  { label: "Dashboard", href: null, icon: LayoutDashboard, roles: ALL, permission: null },
+  { label: "Pegawai", href: "/pegawai", icon: Users, roles: LEADERS, permission: "employee.view" },
+  { label: "Dokumen", href: "/dokumen", icon: FileText, roles: ALL, permission: "document.view" },
+  { label: "Cuti & Izin", href: "/cuti", icon: CalendarDays, roles: ALL, permission: "leave.view" },
+  { label: "Approval", href: "/approval", icon: ClipboardCheck, roles: ["HRD", "KABAG"], permission: "leave.approve" },
+  { label: "Kalender", href: "/kalender", icon: Calendar, roles: ALL, permission: null },
+  { label: "Laporan", href: "/laporan", icon: BarChart3, roles: LEADERS, permission: "report.view" },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { hasRole } = useAuthStore();
+  const { hasRole, hasPermission } = useAuthStore();
 
   const userRoles = hasRole("HRD") ? ["HRD"] : hasRole("DIREKTUR") ? ["DIREKTUR"] : hasRole("PD_I") ? ["PD_I"] : hasRole("PD_II") ? ["PD_II"] : hasRole("PD_III") ? ["PD_III"] : hasRole("KABAG") ? ["KABAG"] : ["PEG"];
 
@@ -31,7 +31,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     return "/dashboard/pegawai";
   })();
 
-  const filteredMenu = menuItems.filter((item) => item.roles.some((r) => userRoles.includes(r)));
+  const filteredMenu = menuItems.filter((item) => {
+    if (!item.roles.some((r) => userRoles.includes(r))) return false;
+    if (item.permission && !hasPermission(item.permission)) return false;
+    return true;
+  });
 
   return (
     <>
@@ -64,7 +68,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
       </nav>
-      {hasRole("HRD") && (
+      {hasRole("HRD") && hasPermission("audit.view") && (
         <NavLink
           to="/audit-logs"
           onClick={onNavigate}
@@ -80,7 +84,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           Audit Trail
         </NavLink>
       )}
-      {hasRole("HRD") && (
+      {hasRole("HRD") && hasPermission("auth.role.manage") && (
         <NavLink
           to="/hak-akses"
           onClick={onNavigate}
