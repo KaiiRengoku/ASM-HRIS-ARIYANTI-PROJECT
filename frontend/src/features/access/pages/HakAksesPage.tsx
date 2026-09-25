@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { getUser } from '@/features/auth/services/authService';
 import {
     getAccess,
     saveAccess,
@@ -18,7 +19,7 @@ const ROLE_MANAGE_CODE = 'auth.role.manage';
 
 export default function HakAksesPage() {
     const queryClient = useQueryClient();
-    const { hasRole } = useAuthStore();
+    const { hasRole, token, setAuth } = useAuthStore();
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['role-permissions'],
@@ -40,9 +41,13 @@ export default function HakAksesPage() {
     const saveMutation = useMutation({
         mutationFn: (role: RoleAccessRow) =>
             saveAccess([{ id: role.id, permissions: currentIds(role) }]),
-        onSuccess: () => {
+        onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['role-permissions'] });
-            toast({ title: 'Berhasil', description: 'Hak akses tersimpan.' });
+            toast({ title: 'Berhasil', description: 'Hak akses tersimpan. Anggota role yang berubah otomatis logout.' });
+            try {
+                const res = await getUser();
+                if (res.success && token) setAuth(res.data.user, token);
+            } catch { /* token sendiri mungkin tetap valid */ }
             setChecked(null);
         },
         onError: (e: any) => toast({
@@ -74,8 +79,7 @@ export default function HakAksesPage() {
                     onCheckedChange={(value) => toggle(role, permission.id, value === true)}
                 />
                 <span className="leading-tight">
-                    {permission.name}
-                    <span className="block text-xs text-muted-foreground">{permission.code}</span>
+                    {permission.description || permission.name}
                 </span>
             </label>
         );

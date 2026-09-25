@@ -135,8 +135,8 @@ class LeaveController extends Controller
 
     public function store(Request $request)
     {
-        $isHrd = $request->user()->roles()->where('code', 'HRD')->exists();
-        if (!$isHrd) {
+        $canEnterOthers = $request->user()->hasPermission('leave.update');
+        if (!$canEnterOthers) {
             $request->merge(['employee_id' => $this->ownEmployeeId($request)]);
         }
         if (!$request->employee_id) {
@@ -192,7 +192,7 @@ class LeaveController extends Controller
             'reason' => $request->reason,
             'status' => 'Pending',
             'submitted_at' => now(),
-            'source' => ($request->user()->roles->first()->code ?? null) === 'HRD' ? 'MANUAL' : 'ONLINE',
+            'source' => $canEnterOthers ? 'MANUAL' : 'ONLINE',
             'created_by' => $request->user()->id,
             'emergency_address' => $request->emergency_address,
             'emergency_contact' => $request->emergency_contact,
@@ -434,14 +434,14 @@ class LeaveController extends Controller
 
     public function cancel(Request $request, LeaveRequest $leave)
     {
-        $isHrd = $request->user()->roles()->where('code', 'HRD')->exists();
-        if (!$isHrd && $leave->employee_id !== $this->ownEmployeeId($request)) {
+        $canManage = $request->user()->hasPermission('leave.update');
+        if (!$canManage && $leave->employee_id !== $this->ownEmployeeId($request)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
         $oldStatus = $leave->status;
         $wasFinal = $oldStatus === 'Disetujui HRD';
-        if (!$isHrd && $wasFinal) {
-            return response()->json(['success' => false, 'message' => 'Cuti yang sudah disetujui HRD hanya dapat dibatalkan oleh HRD.'], 400);
+        if (!$canManage && $wasFinal) {
+            return response()->json(['success' => false, 'message' => 'Cuti yang sudah disetujui HRD hanya dapat dibatalkan oleh pengelola (hak ubah cuti).'], 400);
         }
         if (!in_array($oldStatus, ['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'])) {
             return response()->json(['success' => false, 'message' => 'Status tidak dapat dibatalkan.'], 400);
@@ -496,12 +496,7 @@ class LeaveController extends Controller
 
     public function update(Request $request, LeaveRequest $leave)
     {
-        // Only HRD can edit
-        $user = $request->user();
-        $role = $user->roles->first()->code ?? null;
-        if ($role !== 'HRD') {
-            return response()->json(['success' => false, 'message' => 'Hanya HRD yang dapat mengedit cuti.'], 403);
-        }
+        // Guarded by permission:leave.update
 
         // Only allowed if status is Pending or Disetujui Kepala Bagian (not finalized)
         if (!in_array($leave->status, ['Pending', 'Disetujui Kepala Bagian'])) {
@@ -529,7 +524,7 @@ class LeaveController extends Controller
         ]);
 
         AuditLog::create([
-            'user_id' => $user->id,
+            'user_id' => $request->user()->id,
             'action' => 'UPDATE_LEAVE',
             'auditable_type' => LeaveRequest::class,
             'auditable_id' => $leave->id,
@@ -548,10 +543,6 @@ class LeaveController extends Controller
     public function destroy(Request $request, LeaveRequest $leave)
     {
         $user = $request->user();
-        $role = $user->roles->first()->code ?? null;
-        if ($role !== 'HRD') {
-            return response()->json(['success' => false, 'message' => 'Hanya HRD yang dapat menghapus cuti.'], 403);
-        }
 
         $validated = $request->validate([
             'reason' => ['required', 'string'],
@@ -620,10 +611,6 @@ class LeaveController extends Controller
 
     public function verifyAttachment(Request $request, \App\Models\LeaveAttachment $attachment)
     {
-        $role = $request->user()->roles->first()->code ?? null;
-        if ($role !== 'HRD') {
-            return response()->json(['success' => false, 'message' => 'Hanya HRD yang dapat memverifikasi.'], 403);
-        }
         $validated = $request->validate([
             'status' => ['required', 'in:VERIFIED,REJECTED'],
             'note' => ['nullable', 'string'],

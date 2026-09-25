@@ -4,16 +4,15 @@ import { LayoutDashboard, Users, FileText, CalendarDays, ClipboardCheck, Calenda
 import logo from "@/assets/logo_asm.png";
 
 const ALL = ["PEG", "HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG"];
-const LEADERS = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III"];
 
 const menuItems = [
   { label: "Dashboard", href: null, icon: LayoutDashboard, roles: ALL, permission: null },
-  { label: "Pegawai", href: "/pegawai", icon: Users, roles: LEADERS, permission: "employee.view" },
+  { label: "Pegawai", href: "/pegawai", icon: Users, roles: ALL, permission: "employee.view" },
   { label: "Dokumen", href: "/dokumen", icon: FileText, roles: ALL, permission: "document.view" },
   { label: "Cuti & Izin", href: "/cuti", icon: CalendarDays, roles: ALL, permission: "leave.view" },
-  { label: "Approval", href: "/approval", icon: ClipboardCheck, roles: ["HRD", "KABAG"], permission: "leave.approve" },
+  { label: "Approval", href: "/approval", icon: ClipboardCheck, roles: ALL, permission: "leave.approve" },
   { label: "Kalender", href: "/kalender", icon: Calendar, roles: ALL, permission: null },
-  { label: "Laporan", href: "/laporan", icon: BarChart3, roles: LEADERS, permission: "report.view" },
+  { label: "Laporan", href: "/laporan", icon: BarChart3, roles: ALL, permission: "report.view" },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -68,7 +67,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
       </nav>
-      {hasRole("HRD") && hasPermission("audit.view") && (
+      {hasPermission("audit.view") && (
         <NavLink
           to="/audit-logs"
           onClick={onNavigate}
@@ -84,7 +83,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           Audit Trail
         </NavLink>
       )}
-      {hasRole("HRD") && hasPermission("auth.role.manage") && (
+      {hasPermission("auth.role.manage") && (
         <NavLink
           to="/hak-akses"
           onClick={onNavigate}

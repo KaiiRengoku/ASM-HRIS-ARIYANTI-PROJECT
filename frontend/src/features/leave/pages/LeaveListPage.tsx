@@ -38,9 +38,12 @@ export default function LeaveListPage() {
     const [createFile, setCreateFile] = useState<File | null>(null);
     const [adjustForm, setAdjustForm] = useState<any>({ employee_id: '', leave_type_id: '', amount: '', reason: '' });
     const queryClient = useQueryClient();
-    const { hasRole, user } = useAuthStore();
-    const isHrd = hasRole('HRD');
-    const canApprove = hasRole('HRD') || hasRole('KABAG');
+    const { hasPermission, user } = useAuthStore();
+    const canManage = hasPermission('leave.update');
+    const canDelete = hasPermission('leave.delete');
+    const canAdjust = hasPermission('leave.adjust_balance');
+    const canApprove = hasPermission('leave.approve');
+    const isHrd = canManage;
 
     const debouncedSearch = useDebounce(search);
     const normalizedStatus = statusFilter === 'all' ? '' : statusFilter;
@@ -54,7 +57,7 @@ export default function LeaveListPage() {
     const { data: employees } = useQuery({
         queryKey: ['employees-list'],
         queryFn: async () => (await api.get('/employees?per_page=100')).data.data,
-        enabled: isHrd,
+        enabled: canManage && hasPermission('employee.view'),
     });
 
     const { data: leaveTypes } = useQuery({
@@ -142,7 +145,7 @@ export default function LeaveListPage() {
                     <p className="text-muted-foreground">Kelola pengajuan cuti dan izin</p>
                 </div>
                 <div className="flex gap-2">
-                    {isHrd && (
+                    {canAdjust && (
                     <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline">+ Sesuaikan Saldo</Button>
@@ -332,13 +335,13 @@ export default function LeaveListPage() {
                                                     <Button variant="destructive" size="sm" onClick={() => { setRejectId(leave.id); setRejectReason(''); }}>Tolak</Button>
                                                 </>
                                             )}
-                                            {isHrd && leave.status === 'Disetujui Kepala Bagian' && (
-                                                <Button size="sm" onClick={() => approveMutation.mutate(leave.id)} className="bg-green-600 hover:bg-green-700 text-white">Finalisasi (HRD)</Button>
+                                            {canApprove && leave.status === 'Disetujui Kepala Bagian' && (
+                                                <Button size="sm" onClick={() => approveMutation.mutate(leave.id)} className="bg-green-600 hover:bg-green-700 text-white">Finalisasi</Button>
                                             )}
                                             {['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'].includes(leave.status) && (
                                                 <Button variant="outline" size="sm" onClick={() => { if (confirm('Batalkan pengajuan cuti ini?')) cancelMutation.mutate(leave.id); }}>Batalkan</Button>
                                             )}
-                                            {isHrd && (
+                                            {canDelete && (
                                                 <Button variant="destructive" size="sm" onClick={() => { setDeleteId(leave.id); setDeleteReason(''); }}>Hapus</Button>
                                             )}
                                             </div>

@@ -44,8 +44,8 @@ export default function WorkSchedulePage() {
     const [isActive, setIsActive] = useState(true);
 
     const queryClient = useQueryClient();
-    const { hasRole } = useAuthStore();
-    const isHrd = hasRole('HRD');
+    const { hasPermission } = useAuthStore();
+    const isHrd = hasPermission('calendar.manage');
 
     const { data: schedules, isLoading, error } = useQuery({
         queryKey: ['work-schedules'],

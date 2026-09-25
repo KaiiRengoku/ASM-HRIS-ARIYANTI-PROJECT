@@ -32,8 +32,6 @@ import ChangePasswordPage from "@/features/profile/pages/ChangePasswordPage";
 import HakAksesPage from "@/features/access/pages/HakAksesPage";
 
 const HRD = ["HRD"];
-const HRD_DIREKTUR_PD = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III"];
-const HRD_KABAG = ["HRD", "KABAG"];
 const ALL_ROLES = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG", "PEG"];
 
 const protectedRoutes = [
@@ -44,23 +42,23 @@ const protectedRoutes = [
   { path: "/dashboard/pd-3", element: <PD3Dashboard />, roles: ["PD_III"] },
   { path: "/dashboard/kabag", element: <KabagDashboard />, roles: ["KABAG"] },
   { path: "/dashboard/pegawai", element: <PegawaiDashboard />, roles: ["PEG"] },
-  { path: "/pegawai", element: <EmployeeListPage />, roles: HRD_DIREKTUR_PD, permissions: ["employee.view"] },
-  { path: "/pegawai/create", element: <EmployeeFormPage />, roles: HRD, permissions: ["employee.create"] },
-  { path: "/pegawai/:id", element: <EmployeeDetailPage />, roles: HRD_DIREKTUR_PD, permissions: ["employee.view"] },
-  { path: "/pegawai/:id/edit", element: <EmployeeFormPage />, roles: HRD, permissions: ["employee.update"] },
+  { path: "/pegawai", element: <EmployeeListPage />, roles: ALL_ROLES, permissions: ["employee.view"] },
+  { path: "/pegawai/create", element: <EmployeeFormPage />, roles: ALL_ROLES, permissions: ["employee.create"] },
+  { path: "/pegawai/:id", element: <EmployeeDetailPage />, roles: ALL_ROLES, permissions: ["employee.view"] },
+  { path: "/pegawai/:id/edit", element: <EmployeeFormPage />, roles: ALL_ROLES, permissions: ["employee.update"] },
   { path: "/dokumen", element: <DocumentListPage />, roles: ALL_ROLES, permissions: ["document.view"] },
   { path: "/cuti", element: <LeaveListPage />, roles: ALL_ROLES, permissions: ["leave.view"] },
   { path: "/cuti/create", element: <LeaveFormPage />, roles: ALL_ROLES, permissions: ["leave.create"] },
   { path: "/cuti/:id", element: <LeaveDetailPage />, roles: ALL_ROLES, permissions: ["leave.view"] },
-  { path: "/cuti/:id/edit", element: <LeaveEditPage />, roles: HRD, permissions: ["leave.update"] },
+  { path: "/cuti/:id/edit", element: <LeaveEditPage />, roles: ALL_ROLES, permissions: ["leave.update"] },
   { path: "/kalender", element: <CalendarPage />, roles: ALL_ROLES },
-  { path: "/laporan", element: <ReportPage />, roles: HRD_DIREKTUR_PD, permissions: ["report.view"] },
-  { path: "/approval", element: <ApprovalPage />, roles: HRD_KABAG, permissions: ["leave.approve"] },
+  { path: "/laporan", element: <ReportPage />, roles: ALL_ROLES, permissions: ["report.view"] },
+  { path: "/approval", element: <ApprovalPage />, roles: ["HRD", "KABAG"], permissions: ["leave.approve"] },
   { path: "/pengguna", element: <Navigate to="/pegawai" replace /> },
-  { path: "/cuti/saldo/adjust", element: <LeaveBalanceAdjustPage />, roles: HRD, permissions: ["leave.adjust_balance"] },
+  { path: "/cuti/saldo/adjust", element: <LeaveBalanceAdjustPage />, roles: ALL_ROLES, permissions: ["leave.adjust_balance"] },
   { path: "/work-schedules", element: <WorkSchedulePage />, roles: ALL_ROLES },
-  { path: "/audit-logs", element: <AuditLogPage />, roles: HRD, permissions: ["audit.view"] },
-  { path: "/hak-akses", element: <HakAksesPage />, roles: HRD, permissions: ["auth.role.manage"] },
+  { path: "/audit-logs", element: <AuditLogPage />, roles: ALL_ROLES, permissions: ["audit.view"] },
+  { path: "/hak-akses", element: <HakAksesPage />, roles: ALL_ROLES, permissions: ["auth.role.manage"] },
   { path: "/profile", element: <ProfilePage />, roles: ALL_ROLES },
   { path: "/profile/password", element: <ChangePasswordPage />, roles: ALL_ROLES },
 ];

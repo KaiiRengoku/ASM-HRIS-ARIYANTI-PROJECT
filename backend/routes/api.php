@@ -36,27 +36,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('employees', [EmployeeController::class, 'index'])->middleware('permission:employee.view');
     Route::get('employees/{employee}', [EmployeeController::class, 'show'])->middleware('permission:employee.view');
 
-    Route::middleware(['role:HRD', 'permission:employee.create'])->group(function () {
+    Route::middleware('permission:employee.create')->group(function () {
         Route::post('employees', [EmployeeController::class, 'store']);
     });
-    Route::middleware(['role:HRD', 'permission:employee.update'])->group(function () {
+    Route::middleware('permission:employee.update')->group(function () {
         Route::put('employees/{employee}', [EmployeeController::class, 'update']);
-        Route::put('employees/{employee}/account', [EmployeeController::class, 'updateAccount']);
     });
-    Route::middleware(['role:HRD', 'permission:employee.delete'])->group(function () {
+    Route::middleware('permission:employee.delete')->group(function () {
         Route::delete('employees/{employee}', [EmployeeController::class, 'destroy']);
         Route::delete('employees/{employee}/account', [EmployeeController::class, 'destroyAccount']);
     });
+    Route::middleware('permission:auth.user.update')->group(function () {
+        Route::put('employees/{employee}/account', [EmployeeController::class, 'updateAccount']);
+    });
+    Route::get('roles', function () {
+        return response()->json(['success' => true, 'data' => \App\Models\Role::all()]);
+    });
 
-    Route::middleware(['role:HRD', 'permission:auth.role.manage'])->group(function () {
-        Route::get('roles', function () {
-            return response()->json(['success' => true, 'data' => \App\Models\Role::all()]);
-        });
+    Route::middleware('permission:auth.role.manage')->group(function () {
         Route::get('role-permissions', [RolePermissionController::class, 'index']);
         Route::put('role-permissions', [RolePermissionController::class, 'updateAll']);
     });
 
-    Route::middleware(['role:HRD', 'permission:calendar.manage'])->group(function () {
+    Route::middleware('permission:calendar.manage')->group(function () {
         Route::post('holidays', [CalendarController::class, 'store']);
         Route::put('holidays/{holiday}', [CalendarController::class, 'update']);
         Route::delete('holidays/{holiday}', [CalendarController::class, 'destroy']);
@@ -68,34 +70,34 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('work-schedules/{workSchedule}', [WorkScheduleController::class, 'destroy']);
     });
 
-    Route::middleware(['role:HRD', 'permission:leave.adjust_balance'])->group(function () {
+    Route::middleware('permission:leave.adjust_balance')->group(function () {
         Route::post('leave-balances/adjust', [LeaveBalanceController::class, 'adjust']);
         Route::post('leave-balances/accrue', [LeaveBalanceController::class, 'accrue']);
     });
 
     Route::get('audit-logs', [AuditLogController::class, 'index'])
-        ->middleware(['role:HRD', 'permission:audit.view']);
+        ->middleware('permission:audit.view');
 
-    Route::middleware(['role:HRD', 'permission:leave.approve'])->group(function () {
+    Route::middleware('permission:leave.approve')->group(function () {
         Route::post('leave-attachments/{attachment}/verify', [LeaveController::class, 'verifyAttachment']);
     });
     Route::put('leaves/{leave}', [LeaveController::class, 'update'])
-        ->middleware(['role:HRD', 'permission:leave.update']);
+        ->middleware('permission:leave.update');
     Route::delete('leaves/{leave}', [LeaveController::class, 'destroy'])
-        ->middleware(['role:HRD', 'permission:leave.delete']);
+        ->middleware('permission:leave.delete');
 
-    Route::middleware(['role:HRD,DIREKTUR,PD_I,PD_II,PD_III', 'permission:employee.export'])->group(function () {
+    Route::middleware('permission:employee.export')->group(function () {
         Route::get('reports/employees/export', [ReportController::class, 'exportEmployees']);
         Route::get('reports/employees/excel', [ReportController::class, 'exportEmployeesExcel']);
         Route::get('reports/employees/pdf', [ReportController::class, 'exportEmployeesPdf']);
     });
-    Route::middleware(['role:HRD,DIREKTUR,PD_I,PD_II,PD_III', 'permission:leave.export'])->group(function () {
+    Route::middleware('permission:leave.export')->group(function () {
         Route::get('reports/leaves/export', [ReportController::class, 'exportLeaves']);
         Route::get('reports/leaves/excel', [ReportController::class, 'exportLeavesExcel']);
         Route::get('reports/leaves/pdf', [ReportController::class, 'exportLeavesPdf']);
     });
     Route::get('reports/leaves/recap', [ReportController::class, 'leaveRecap'])
-        ->middleware(['role:HRD,DIREKTUR,PD_I,PD_II,PD_III', 'permission:leave.view']);
+        ->middleware(['role:HRD,DIREKTUR,PD_I,PD_II,PD_III,KABAG', 'permission:leave.view']);
 
     Route::get('documents', [DocumentController::class, 'index'])->middleware('permission:document.view');
     Route::post('documents', [DocumentController::class, 'store'])->middleware('permission:document.upload');

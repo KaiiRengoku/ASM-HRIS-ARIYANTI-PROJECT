@@ -24,8 +24,10 @@ export default function LeaveDetailPage() {
         queryKey: ['leave', id],
         queryFn: () => fetchLeave(Number(id)),
     });
-    const { hasRole } = useAuthStore();
-    const isHrd = hasRole('HRD');
+    const { hasPermission } = useAuthStore();
+    const isHrd = hasPermission('leave.update');
+    const canDelete = hasPermission('leave.delete');
+    const canVerify = hasPermission('leave.approve');
     const queryClient = useQueryClient();
     const cancelMutation = useMutation({
         mutationFn: async () => (await api.post(`/leaves/${id}/cancel`)).data,
@@ -82,7 +84,7 @@ export default function LeaveDetailPage() {
           {['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'].includes(leave.status) && (
             <Button variant="outline" onClick={() => { if (confirm('Batalkan pengajuan cuti ini?')) cancelMutation.mutate(); }}>Batalkan</Button>
           )}
-          {isHrd && (
+          {canDelete && (
             <Button variant="destructive" onClick={() => { setDeleteReason(''); setDeleteOpen(true); }}>Hapus</Button>
           )}
           </div>
@@ -125,7 +127,7 @@ export default function LeaveDetailPage() {
                                         {att.file_name}
                                     </button>
                                     <span className="text-muted-foreground">({att.verification_status || 'PENDING'})</span>
-                                    {hasRole('HRD') && att.verification_status === 'PENDING' && (
+                                    {canVerify && att.verification_status === 'PENDING' && (
                                         <>
                                             <Button size="sm" onClick={() => verifyMutation.mutate({ attId: att.id, status: 'VERIFIED' })}>Verifikasi</Button>
                                             <Button size="sm" variant="destructive" onClick={() => verifyMutation.mutate({ attId: att.id, status: 'REJECTED' })}>Tolak</Button>

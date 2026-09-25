@@ -48,13 +48,13 @@ const submitLeave = async (data: any) => {
 export default function LeaveFormPage() {
     const navigate = useNavigate();
     const [file, setFile] = useState<File | null>(null);
-    const { hasRole, user } = useAuthStore();
-    const isHrd = hasRole('HRD');
+    const { hasPermission, user } = useAuthStore();
+    const isHrd = hasPermission('leave.update');
 
     const { data: employees, isLoading: loadingEmployees } = useQuery({
         queryKey: ['employees-list'],
         queryFn: fetchEmployees,
-        enabled: isHrd,
+        enabled: isHrd && hasPermission('employee.view'),
     });
 
     const { data: leaveTypes, isLoading: loadingLeaveTypes } = useQuery({

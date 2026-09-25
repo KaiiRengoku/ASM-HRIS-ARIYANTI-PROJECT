@@ -69,7 +69,22 @@ class RolePermissionController extends Controller
             );
 
             if (array_key_exists('permissions', $row)) {
-                Role::find($row['id'])->permissions()->sync($row['permissions']);
+                $role = Role::find($row['id']);
+                $before = $role->permissions()->pluck('permissions.id')->all();
+                $role->permissions()->sync($row['permissions']);
+
+                // Perubahan permission = sesi anggota role itu basi → revoke token mereka
+                // (kecuali token yang sedang dipakai, supaya HRD tidak ter-logout sendiri).
+                if (array_diff($before, $row['permissions']) || array_diff($row['permissions'], $before)) {
+                    $activeTokenId = $request->user()->currentAccessToken() instanceof \Laravel\Sanctum\PersonalAccessToken
+                        ? $request->user()->currentAccessToken()->id
+                        : null;
+                    \App\Models\User::whereHas('roles', fn ($q) => $q->where('roles.id', $role->id))
+                        ->get()
+                        ->each(function ($u) use ($activeTokenId) {
+                            $u->tokens()->when($activeTokenId, fn ($q) => $q->where('id', '!=', $activeTokenId))->delete();
+                        });
+                }
             }
         }
 

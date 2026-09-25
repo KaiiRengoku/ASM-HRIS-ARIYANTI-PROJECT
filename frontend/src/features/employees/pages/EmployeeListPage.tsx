@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ReadOnlyField } from '@/components/ui/read-only-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,8 +33,11 @@ export default function EmployeeListPage() {
   const [accountEmp, setAccountEmp] = useState<any>(null);
   const [accountForm, setAccountForm] = useState({ password: '', role: 'PEG', position_id: '' });
   const queryClient = useQueryClient();
-  const { hasRole } = useAuthStore();
-  const isHrd = hasRole('HRD');
+  const { hasPermission } = useAuthStore();
+  const canCreate = hasPermission('employee.create');
+  const canUpdate = hasPermission('employee.update');
+  const canDelete = hasPermission('employee.delete');
+  const canManageAccount = hasPermission('auth.user.update');
 
   const debouncedSearch = useDebounce(search);
 
@@ -47,7 +50,7 @@ export default function EmployeeListPage() {
   const { data: roles } = useQuery({
     queryKey: ['roles'],
     queryFn: async () => (await api.get('/roles')).data.data,
-    enabled: isHrd,
+    enabled: canCreate || canManageAccount,
   });
 
   const { data: positions } = useQuery({
@@ -132,11 +135,13 @@ export default function EmployeeListPage() {
           <h1 className="text-2xl font-bold">Data Pegawai</h1>
           <p className="text-muted-foreground">Kelola data pegawai, dosen, dan akun login</p>
         </div>
-        {isHrd && (
+        {(canCreate || canUpdate) && (
         <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreate}>+ Tambah Pegawai</Button>
-          </DialogTrigger>
+          <div>
+            {canCreate && (
+              <Button onClick={openCreate}>+ Tambah Pegawai</Button>
+            )}
+          </div>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editId ? 'Edit' : 'Tambah'} Pegawai</DialogTitle>
@@ -308,28 +313,31 @@ export default function EmployeeListPage() {
                           <Link to={`/pegawai/${emp.id}`}>
                             <Button variant="outline" size="sm">Detail</Button>
                           </Link>
-                          {isHrd && (
+                          {(canUpdate || canDelete || canManageAccount) && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="outline" size="sm">Kelola</Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => openEdit(emp)}>Edit Data</DropdownMenuItem>
-                                  {emp.has_account && (
+                                  {canUpdate && (
+                                    <DropdownMenuItem onClick={() => openEdit(emp)}>Edit Data</DropdownMenuItem>
+                                  )}
+                                  {canManageAccount && emp.has_account && (
                                     <DropdownMenuItem onClick={() => openAccount(emp)}>Kelola Akun</DropdownMenuItem>
                                   )}
-                                  {emp.has_account && (
+                                  {canDelete && emp.has_account && (
                                     <DropdownMenuItem onClick={() => { if (confirm(`Hapus akun ${emp.nama_lengkap}? Data pegawai tetap ada.`)) deleteAccountMutation.mutate(emp.id); }}>
                                       Hapus Akun
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => { if (confirm(`Hapus data ${emp.nama_lengkap} beserta akunnya secara permanen?`)) deleteMutation.mutate(emp.id); }}
-                                  >
-                                    Hapus Pegawai
-                                  </DropdownMenuItem>
+                                  {canDelete && (
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => { if (confirm(`Hapus data ${emp.nama_lengkap} beserta akunnya secara permanen?`)) deleteMutation.mutate(emp.id); }}
+                                    >
+                                      Hapus Pegawai
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                           )}

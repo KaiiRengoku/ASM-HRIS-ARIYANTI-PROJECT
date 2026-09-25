@@ -55,8 +55,8 @@ export default function CalendarPage() {
     const rangeValid = !!viewFrom && !!viewTo && viewTo >= viewFrom && rangeDays <= 366;
 
     const queryClient = useQueryClient();
-    const { hasRole } = useAuthStore();
-    const isHrd = hasRole('HRD');
+    const { hasPermission } = useAuthStore();
+    const isHrd = hasPermission('calendar.manage');
 
     const { data: holidays, isLoading, error } = useQuery({ queryKey: ['holidays'], queryFn: fetchHolidays });
     const { data: schedules } = useQuery({ queryKey: ['work-schedules'], queryFn: fetchSchedules });

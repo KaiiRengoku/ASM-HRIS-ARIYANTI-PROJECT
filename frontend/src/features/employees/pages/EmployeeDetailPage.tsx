@@ -38,8 +38,9 @@ const downloadBiodata = async (kind: 'pdf' | 'word', employeeId: number, nik: st
 
 export default function EmployeeDetailPage() {
   const { id } = useParams();
-  const { hasRole } = useAuthStore();
-  const isHrd = hasRole('HRD');
+  const { hasPermission } = useAuthStore();
+  const canUpdate = hasPermission('employee.update');
+  const canManageAccount = hasPermission('auth.user.update');
   const { data: employee, isLoading, error } = useQuery({
     queryKey: ['employee', id],
     queryFn: () => getEmployee(Number(id)),
@@ -59,7 +60,7 @@ export default function EmployeeDetailPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Detail Pegawai</h1>
         <div className="flex flex-wrap gap-2">
-          {isHrd && (
+          {canUpdate && (
             <Link to={`/pegawai/${id}/edit`}>
               <Button>Edit</Button>
             </Link>
@@ -128,7 +129,7 @@ export default function EmployeeDetailPage() {
         </CardContent>
       </Card>
 
-      {isHrd && (
+      {canManageAccount && (
         <Card>
           <CardHeader>
             <CardTitle>Informasi Akun</CardTitle>

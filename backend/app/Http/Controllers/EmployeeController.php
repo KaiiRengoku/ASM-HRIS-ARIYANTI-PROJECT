@@ -17,16 +17,8 @@ use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
 {
-    private function canViewEmployees(Request $request): bool
-    {
-        return $request->user()->roles()->whereIn('code', ['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'])->exists();
-    }
-
     public function index(Request $request)
     {
-        if (!$this->canViewEmployees($request)) {
-            return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
-        }
         $query = Employee::with(['organizationalUnit', 'position', 'user.roles']);
 
         if ($search = $request->search) {
@@ -92,9 +84,6 @@ class EmployeeController extends Controller
 
     public function show(Request $request, Employee $employee)
     {
-        if (!$this->canViewEmployees($request)) {
-            return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
-        }
         return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'user.roles', 'educations']));
     }
 

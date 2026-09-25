@@ -55,6 +55,7 @@ export default function LeaveEditPage() {
     const { register, handleSubmit, setValue, reset, control, formState: { errors } } = useForm<LeaveForm>({
         resolver: zodResolver(leaveSchema),
     });
+    const leaveTypeId = useWatch({ control, name: 'leave_type_id' }) || '';
 
     useEffect(() => {
         if (leave) {
@@ -91,7 +92,7 @@ export default function LeaveEditPage() {
                     <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
                         <div>
                             <Label>Jenis Cuti</Label>
-                            <Select onValueChange={(v) => setValue('leave_type_id', v)} value={useWatch({ control, name: 'leave_type_id' }) || ''}>
+                            <Select onValueChange={(v) => setValue('leave_type_id', v)} value={leaveTypeId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Pilih jenis" />
                                 </SelectTrigger>
