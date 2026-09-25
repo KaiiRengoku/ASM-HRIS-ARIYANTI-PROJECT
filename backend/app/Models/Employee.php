@@ -87,4 +87,9 @@ class Employee extends Model
     {
         return $this->hasMany(TeachingAssignment::class);
     }
+
+    public function positionHistories()
+    {
+        return $this->hasMany(EmployeePositionHistory::class);
+    }
 }

@@ -84,7 +84,7 @@ class EmployeeController extends Controller
 
     public function show(Request $request, Employee $employee)
     {
-        return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'user.roles', 'educations']));
+        return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'user.roles', 'educations', 'positionHistories']));
     }
 
     public function update(UpdateEmployeeRequest $request, Employee $employee)

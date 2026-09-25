@@ -15,7 +15,7 @@ class ProfileController extends Controller
 
     public function show(Request $request)
     {
-        $user = $request->user()->load(['employee.position', 'roles']);
+        $user = $request->user()->load(['employee.position', 'employee.positionHistories', 'roles']);
         $data = $user->toArray();
         $data['is_dosen'] = $this->isDosen($user->employee);
         $data['is_pegawai'] = $data['is_dosen'] || collect($user->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');

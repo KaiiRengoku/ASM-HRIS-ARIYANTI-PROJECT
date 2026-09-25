@@ -63,6 +63,13 @@
         <div class="row"><span class="label">Tanggal Masuk</span> {{ $employee->tanggal_masuk_kerja ?? '-' }}</div>
     </div>
 
+    <h2>C.1 RIWAYAT JABATAN</h2>
+    @forelse($employee->positionHistories as $rh)
+        <div class="row">{{ $rh->start_date?->format('Y') ?? '-' }}{{ $rh->end_date ? ' - ' . $rh->end_date->format('Y') : ' - sekarang' }} : {{ $rh->jabatan }}{{ $rh->unit_kerja ? ' (' . $rh->unit_kerja . ')' : '' }}{{ $rh->no_sk ? ' — SK: ' . $rh->no_sk : '' }}</div>
+    @empty
+        <div class="row">-</div>
+    @endforelse
+
     @if(($isPegawai ?? $isDosen ?? false))
     <h2>D. DATA MENGAJAR</h2>
     <table>

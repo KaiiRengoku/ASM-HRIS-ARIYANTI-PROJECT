@@ -87,6 +87,46 @@ class LeaveController extends Controller
         }
     }
 
+    // Kebutuhan §1.1: HRD mencatat & mengarsipkan hasil keputusan akhir sebagai arsip digital.
+    private function archiveDecision(LeaveRequest $leave, string $statusText): void
+    {
+        try {
+            $leave->loadMissing(['employee', 'leaveType', 'approvals.approver']);
+            $kabag = $leave->approvals->firstWhere('approval_level', 1);
+            $hrd = $leave->approvals->firstWhere('approval_level', 2);
+            $last = $leave->approvals->sortByDesc('acted_at')->first();
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.leave-decision', [
+                'leave' => $leave,
+                'kabagName' => $kabag?->approver?->name ?? '-',
+                'kabagDate' => $kabag?->acted_at?->format('d-m-Y') ?? '-',
+                'hrdName' => $hrd?->approver?->name ?? $last?->approver?->name ?? '-',
+                'hrdDate' => ($hrd?->acted_at ?? $last?->acted_at)?->format('d-m-Y') ?? '-',
+            ]);
+            $path = 'leave-decisions/' . $leave->id . '.pdf';
+            \Illuminate\Support\Facades\Storage::disk('public')->put($path, $pdf->output());
+            \App\Models\EmployeeDocument::create([
+                'employee_id' => $leave->employee_id,
+                'document_type' => 'SK Cuti',
+                'file_name' => 'keputusan_cuti_' . $leave->id . '.pdf',
+                'storage_disk' => 'public',
+                'storage_path' => $path,
+                'mime_type' => 'application/pdf',
+                'file_size' => \Illuminate\Support\Facades\Storage::disk('public')->size($path),
+                'uploaded_by' => $last?->approver_id,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Gagal arsip keputusan cuti: ' . $e->getMessage());
+        }
+    }
+
+    private function removeDecisionArchive(LeaveRequest $leave): void
+    {
+        foreach (\App\Models\EmployeeDocument::where('employee_id', $leave->employee_id)->where('document_type', 'SK Cuti')->where('file_name', 'keputusan_cuti_' . $leave->id . '.pdf')->get() as $doc) {
+            \Illuminate\Support\Facades\Storage::disk($doc->storage_disk)->delete($doc->storage_path);
+            $doc->delete();
+        }
+    }
+
     public function index(Request $request)
     {
         $query = LeaveRequest::with(['employee', 'leaveType', 'approvals']);
@@ -352,6 +392,9 @@ class LeaveController extends Controller
             $leave->save();
 
             $statusText = $level === 1 ? 'Disetujui Kepala Bagian' : 'Disetujui HRD';
+            if ($level === 2) {
+                $this->archiveDecision($leave, $statusText);
+            }
             $leaveTypeName = $leave->leaveType->name ?? 'Cuti';
             $msg = "Pengajuan cuti {$leaveTypeName} Anda telah disetujui oleh {$user->name}" . ($level === 1 ? ' (menunggu HRD)' : '');
 
@@ -452,6 +495,7 @@ class LeaveController extends Controller
             $leave->save();
 
             if ($wasFinal) {
+                $this->removeDecisionArchive($leave);
                 $deduct = LeaveBalanceTransaction::where('leave_request_id', $leave->id)
                     ->where('transaction_type', 'DEDUCT')->first();
                 if ($deduct) {
@@ -571,6 +615,7 @@ class LeaveController extends Controller
 
             LeaveBalanceTransaction::where('leave_request_id', $leaveId)->delete();
 
+            $this->removeDecisionArchive($leave);
             foreach ($leave->attachments as $attachment) {
                 if (\Illuminate\Support\Facades\Storage::disk($attachment->storage_disk)->exists($attachment->storage_path)) {
                     \Illuminate\Support\Facades\Storage::disk($attachment->storage_disk)->delete($attachment->storage_path);

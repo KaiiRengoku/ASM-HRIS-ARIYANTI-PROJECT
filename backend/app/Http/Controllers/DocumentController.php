@@ -67,7 +67,7 @@ class DocumentController extends Controller
     {
         $request->validate([
             'employee_id' => ['required', 'exists:employees,id'],
-            'document_type' => ['required', Rule::in(['KTP', 'Ijazah', 'Sertifikat', 'Surat Tugas', 'KK', 'NPWP', 'SK Pengangkatan', 'Foto'])],
+            'document_type' => ['required', Rule::in(['KTP', 'Ijazah', 'Sertifikat', 'Surat Tugas', 'KK', 'NPWP', 'SK Pengangkatan', 'Foto', 'SK Cuti'])],
             'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 

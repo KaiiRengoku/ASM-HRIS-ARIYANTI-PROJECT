@@ -83,6 +83,15 @@ export default function KabagDashboard() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Sisa Cuti Saya</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{data?.sisa_cuti ?? 0} Hari</div>
+                        <p className="text-xs text-muted-foreground">Tahun ini</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Aksi</CardTitle>
                     </CardHeader>
                     <CardContent>

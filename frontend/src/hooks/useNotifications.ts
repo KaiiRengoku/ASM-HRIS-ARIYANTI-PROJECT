@@ -15,10 +15,13 @@ export function useNotifications() {
         const channel = echo.private(`notifications.${user.id}`);
 
         channel.listen('NotificationSent', (e: any) => {
-            toast({
-                title: e.title || 'Notifikasi',
-                description: e.message || '',
-            });
+            const title = e.title || 'Notifikasi';
+            const body = e.message || '';
+            toast({ title, description: body });
+            // Browser notification (kebutuhan §2.1) bila izin sudah diberikan.
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, { body });
+            }
         });
 
         return () => {

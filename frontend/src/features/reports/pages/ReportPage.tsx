@@ -18,11 +18,28 @@ export default function ReportPage() {
     const [leaveFrom, setLeaveFrom] = useState('');
     const [leaveTo, setLeaveTo] = useState('');
     const [recapYear, setRecapYear] = useState(String(new Date().getFullYear()));
+    const [recapScope, setRecapScope] = useState('all');
+    const [recapUnit, setRecapUnit] = useState('');
 
     const { data: recap } = useQuery({
-        queryKey: ['leave-recap', recapYear],
-        queryFn: async () => (await api.get('/reports/leaves/recap', { params: { year: recapYear } })).data.data,
+        queryKey: ['leave-recap', recapYear, recapScope, recapUnit],
+        queryFn: async () => (await api.get('/reports/leaves/recap', {
+            params: {
+                year: recapYear,
+                ...(recapScope === 'akademik' ? { scope: 'akademik' } : {}),
+                ...(recapUnit ? { organizational_unit_id: recapUnit } : {}),
+            },
+        })).data.data,
     });
+    const { data: units } = useQuery({
+        queryKey: ['organizational-units'],
+        queryFn: async () => (await api.get('/organizational-units')).data.data,
+    });
+    const dosenCuti = (recap as any[] | undefined)
+        ?.filter((r) => r.is_dosen)
+        .flatMap((r) => (r.riwayat_cuti ?? [])
+            .filter((c: any) => ['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'].includes(c.status))
+            .map((c: any) => ({ ...c, nama: r.nama_lengkap })));
 
     const { data: leaveTypes } = useQuery({
         queryKey: ['leave-types'],
@@ -155,8 +172,26 @@ const downloadBlob = async (url: string, filename: string) => {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Rekap Sisa Cuti Tahunan per Pegawai</CardTitle>
-                    <div className="w-32">
-                        <Input type="number" value={recapYear} onChange={(e) => setRecapYear(e.target.value)} placeholder="Tahun" />
+                    <div className="flex items-center gap-2">
+                        <Select value={recapScope} onValueChange={setRecapScope}>
+                            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Pegawai</SelectItem>
+                                <SelectItem value="akademik">Lingkungan Akademik (Dosen)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={recapUnit || 'all'} onValueChange={(v) => setRecapUnit(v === 'all' ? '' : v)}>
+                            <SelectTrigger className="w-44"><SelectValue placeholder="Semua Unit" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Unit</SelectItem>
+                                {units?.map((u: any) => (
+                                    <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <div className="w-24">
+                            <Input type="number" value={recapYear} onChange={(e) => setRecapYear(e.target.value)} placeholder="Tahun" />
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -194,6 +229,45 @@ const downloadBlob = async (url: string, filename: string) => {
                     </Table>
                 </CardContent>
             </Card>
+            {recapScope === 'akademik' && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Rencana Penggantian Dosen Pengajar (Cuti Aktif/Disetujui)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Dosen</TableHead>
+                                    <TableHead>Jenis</TableHead>
+                                    <TableHead>Mulai</TableHead>
+                                    <TableHead>Selesai</TableHead>
+                                    <TableHead>Lama (hari)</TableHead>
+                                    <TableHead>Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {!dosenCuti?.length ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground">Tidak ada dosen cuti pada tahun ini.</TableCell>
+                                    </TableRow>
+                                ) : (
+                                    dosenCuti.map((c: any) => (
+                                        <TableRow key={c.id}>
+                                            <TableCell>{c.nama}</TableCell>
+                                            <TableCell>{c.jenis}</TableCell>
+                                            <TableCell>{c.start_date}</TableCell>
+                                            <TableCell>{c.end_date}</TableCell>
+                                            <TableCell>{c.total_days}</TableCell>
+                                            <TableCell>{c.status}</TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

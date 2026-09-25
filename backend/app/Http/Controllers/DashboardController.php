@@ -19,6 +19,14 @@ class DashboardController extends Controller
         return (bool) $employee?->is_dosen;
     }
 
+    private function ownSisaCuti(Request $request): float
+    {
+        $balance = LeaveBalance::where('employee_id', $request->user()->employee_id)
+            ->where('period_year', date('Y'))
+            ->first();
+        return $balance ? (float) $balance->remaining_days : 0;
+    }
+
     public function hrdStats(Request $request)
     {
         $totalPegawai = Employee::where('status_kepegawaian', 'aktif')->count();
@@ -164,6 +172,7 @@ class DashboardController extends Controller
                 'pending_approval' => $pending,
                 'total_pengajuan' => $total,
                 'total_employees' => $totalEmployees,
+                'sisa_cuti' => $this->ownSisaCuti($request),
                 'pengajuan_terbaru' => $recent,
             ],
         ]);
@@ -183,6 +192,7 @@ class DashboardController extends Controller
                 'total_cuti' => $totalCuti,
                 'total_pending' => $totalPending,
                 'total_approved' => $totalApproved,
+                'sisa_cuti' => $this->ownSisaCuti($request),
             ],
         ]);
     }
@@ -206,6 +216,7 @@ class DashboardController extends Controller
                 'total_dosen' => $totalPegawai,
                 'total_cuti_dosen' => $totalCuti,
                 'cuti_pending_dosen' => $totalPending,
+                'sisa_cuti' => $this->ownSisaCuti($request),
             ],
         ]);
     }

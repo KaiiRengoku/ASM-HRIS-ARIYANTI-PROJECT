@@ -119,18 +119,33 @@ private function leaveQuery(Request $request)
         ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->employee_id));
 }
 
-public function leaveRecap(Request $request)
+    public function leaveRecap(Request $request)
     {
+        $request->validate([
+            'scope' => 'nullable|in:akademik,unit',
+            'organizational_unit_id' => 'nullable|exists:organizational_units,id',
+        ]);
         $year = (int) $request->query('year', date('Y'));
+        // §1.4/§1.5: rekap lingkup akademik (dosen) untuk perencanaan penggantian pengajar.
+        $employees = Employee::with('position')
+            ->when($request->query('scope') === 'akademik', fn ($q) => $q->where('is_dosen', true))
+            ->when($request->filled('organizational_unit_id'), fn ($q) => $q->where('organizational_unit_id', $request->organizational_unit_id))
+            ->orderBy('nama_lengkap')->get();
 
-        $employees = Employee::with('position')->orderBy('nama_lengkap')->get();
         $annualId = \App\Models\LeaveType::where('code', 'ANNUAL')->value('id');
         $balances = LeaveBalance::where('period_year', $year)
             ->where('leave_type_id', $annualId)
             ->get()
             ->keyBy('employee_id');
 
-        $data = $employees->map(function ($emp) use ($balances, $year) {
+        $riwayat = LeaveRequest::with('leaveType')
+            ->whereYear('start_date', $year)
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->orderBy('start_date')
+            ->get()
+            ->groupBy('employee_id');
+
+        $data = $employees->map(function ($emp) use ($balances, $riwayat, $year) {
             $b = $balances->get($emp->id);
 
             return [
@@ -138,11 +153,20 @@ public function leaveRecap(Request $request)
                 'nik' => $emp->nik,
                 'nama_lengkap' => $emp->nama_lengkap,
                 'jabatan' => $emp->position?->name,
+                'is_dosen' => (bool) $emp->is_dosen,
                 'period_year' => $year,
                 'entitled_days' => (float) ($b->entitled_days ?? 0),
                 'adjustment_days' => (float) ($b->adjustment_days ?? 0),
                 'used_days' => (float) ($b->used_days ?? 0),
                 'remaining_days' => (float) ($b->remaining_days ?? 0),
+                'riwayat_cuti' => $riwayat->get($emp->id, collect())->map(fn ($l) => [
+                    'id' => $l->id,
+                    'jenis' => $l->leaveType->name ?? 'Cuti',
+                    'start_date' => $l->start_date->format('Y-m-d'),
+                    'end_date' => $l->end_date->format('Y-m-d'),
+                    'total_days' => (float) $l->total_days,
+                    'status' => $l->status,
+                ])->values(),
             ];
         })->values();
 
@@ -192,7 +216,7 @@ public function exportBiodataPdf(Request $request, $id)
     if (!$this->canViewBiodata($request, (int) $id)) {
         return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
     }
-    $employee = Employee::with(['position', 'organizationalUnit', 'educations', 'functional', 'teachingAssignments', 'user.roles'])->findOrFail($id);
+    $employee = Employee::with(['position', 'organizationalUnit', 'educations', 'functional', 'teachingAssignments', 'positionHistories', 'user.roles'])->findOrFail($id);
     $isDosen = (bool) $employee->is_dosen;
     $isPegawai = $isDosen || collect($employee->user?->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.biodata', compact('employee', 'isDosen', 'isPegawai'));
@@ -205,7 +229,7 @@ public function exportBiodataWord(Request $request, $id)
     if (!$this->canViewBiodata($request, (int) $id)) {
         return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
     }
-    $employee = Employee::with(['position', 'organizationalUnit', 'educations', 'functional', 'teachingAssignments', 'user.roles'])->findOrFail($id);
+    $employee = Employee::with(['position', 'organizationalUnit', 'educations', 'functional', 'teachingAssignments', 'positionHistories', 'user.roles'])->findOrFail($id);
     $isDosen = (bool) $employee->is_dosen;
     $isPegawai = $isDosen || collect($employee->user?->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
     $html = view('pdf.biodata', compact('employee', 'isDosen', 'isPegawai'))->render();

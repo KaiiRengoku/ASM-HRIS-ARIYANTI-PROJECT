@@ -70,6 +70,15 @@ export default function MainLayout() {
                 <DropdownMenuContent align="end" className="w-80 p-0">
                   <div className="flex items-center justify-between px-3 py-2 border-b">
                     <span className="text-sm font-semibold">Notifikasi</span>
+                    <div className="flex items-center gap-3">
+                    {'Notification' in window && Notification.permission !== 'granted' && (
+                      <button
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => Notification.requestPermission()}
+                      >
+                        Aktifkan notifikasi browser
+                      </button>
+                    )}
                     {(data?.unread ?? 0) > 0 && (
                       <button
                         className="text-xs text-primary hover:underline"
@@ -78,6 +87,7 @@ export default function MainLayout() {
                         Tandai semua dibaca
                       </button>
                     )}
+                    </div>
                   </div>
                   <div className="max-h-80 overflow-y-auto">
                     {!data?.items?.length ? (

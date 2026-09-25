@@ -28,6 +28,7 @@ interface Employee {
     alamat_ktp?: string | null;
     alamat_domisili?: string | null;
     nomor_hp?: string | null;
+    position_histories?: { id: number; jabatan: string; unit_kerja?: string | null; no_sk?: string | null; start_date?: string | null; end_date?: string | null; keterangan?: string | null }[];
 }
 
 interface ProfileData {
@@ -306,6 +307,7 @@ export default function ProfilePage() {
                     <TabsTrigger value="pribadi">Data Pribadi</TabsTrigger>
                     <TabsTrigger value="pendidikan">Pendidikan</TabsTrigger>
                     <TabsTrigger value="fungsional">Pangkat & Fungsional</TabsTrigger>
+                    <TabsTrigger value="jabatan">Riwayat Jabatan</TabsTrigger>
                     {isPegawai && <TabsTrigger value="matkul">Mata Kuliah</TabsTrigger>}
                     {isDosen && <TabsTrigger value="penelitian">Penelitian & Pernyataan</TabsTrigger>}
                 </TabsList>
@@ -493,6 +495,72 @@ export default function ProfilePage() {
                                     <Row label="Unit Kerja" value={functional?.unit_kerja} />
                                     <Row label="Sertifikasi" value={functional?.sertifikasi} />
                                 </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="jabatan">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Riwayat Jabatan</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {!employee?.position_histories?.length ? (
+                                <p className="text-sm text-muted-foreground">Belum ada riwayat jabatan.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {employee.position_histories.map((h) => (
+                                        <div key={h.id} className="rounded-md border p-3 text-sm">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="font-medium">{h.jabatan}{h.unit_kerja ? ` (${h.unit_kerja})` : ''}</p>
+                                                {editing && (
+                                                    <Button variant="ghost" size="sm" onClick={() => api.delete(`/profile/position-histories/${h.id}`).then(() => {
+                                                        toast({ title: 'Terhapus' });
+                                                        queryClient.invalidateQueries({ queryKey: ['profile'] });
+                                                    })}>Hapus</Button>
+                                                )}
+                                            </div>
+                                            <p className="text-muted-foreground">
+                                                {h.start_date ? String(h.start_date).slice(0, 10) : '-'} s.d {h.end_date ? String(h.end_date).slice(0, 10) : 'sekarang'}
+                                                {h.no_sk ? ` — SK: ${h.no_sk}` : ''}{h.keterangan ? ` — ${h.keterangan}` : ''}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {editing && (
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const fd = new FormData(e.currentTarget);
+                                        api.post('/profile/position-histories', {
+                                            jabatan: fd.get('jabatan'),
+                                            unit_kerja: fd.get('unit_kerja') || null,
+                                            no_sk: fd.get('no_sk') || null,
+                                            start_date: fd.get('start_date') || null,
+                                            end_date: fd.get('end_date') || null,
+                                            keterangan: fd.get('keterangan') || null,
+                                        }).then(() => {
+                                            toast({ title: 'Berhasil', description: 'Riwayat jabatan ditambahkan.' });
+                                            (e.target as HTMLFormElement).reset();
+                                            queryClient.invalidateQueries({ queryKey: ['profile'] });
+                                        }).catch(() => {
+                                            toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' });
+                                        });
+                                    }}
+                                    className="space-y-4 rounded-md border p-4"
+                                >
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div><Label>Jabatan</Label><Input name="jabatan" required /></div>
+                                        <div><Label>Unit Kerja</Label><Input name="unit_kerja" /></div>
+                                        <div><Label>No. SK</Label><Input name="no_sk" /></div>
+                                        <div><Label>Mulai</Label><Input name="start_date" type="date" /></div>
+                                        <div><Label>Selesai</Label><Input name="end_date" type="date" /></div>
+                                        <div><Label>Keterangan</Label><Input name="keterangan" /></div>
+                                    </div>
+                                    <Button type="submit">Tambah Riwayat</Button>
+                                </form>
                             )}
                         </CardContent>
                     </Card>

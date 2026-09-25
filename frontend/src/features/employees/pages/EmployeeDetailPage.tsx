@@ -129,6 +129,38 @@ export default function EmployeeDetailPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Riwayat Jabatan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!employee.position_histories?.length ? (
+            <p className="text-muted-foreground">Belum ada riwayat jabatan.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jabatan</TableHead>
+                  <TableHead>Unit Kerja</TableHead>
+                  <TableHead>No. SK</TableHead>
+                  <TableHead>Periode</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {employee.position_histories.map((h: any) => (
+                  <TableRow key={h.id}>
+                    <TableCell>{h.jabatan}</TableCell>
+                    <TableCell>{h.unit_kerja || '-'}</TableCell>
+                    <TableCell>{h.no_sk || '-'}</TableCell>
+                    <TableCell>{h.start_date ? String(h.start_date).slice(0, 10) : '-'} s.d {h.end_date ? String(h.end_date).slice(0, 10) : 'sekarang'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       {canManageAccount && (
         <Card>
           <CardHeader>

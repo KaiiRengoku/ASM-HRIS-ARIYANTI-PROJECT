@@ -48,6 +48,7 @@ class EmployeeResource extends JsonResource
                 'tahun_masuk' => $e->tahun_masuk,
                 'tahun_lulus' => $e->tahun_lulus,
             ])),
+            'position_histories' => $this->whenLoaded('positionHistories'),
             'has_account' => $this->whenLoaded('user', fn() => $this->user !== null),
             'account' => $this->whenLoaded('user', fn() => $this->user ? [
                 'id' => $this->user->id,

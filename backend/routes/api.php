@@ -17,6 +17,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProfileEducationController;
 use App\Http\Controllers\ProfileFunctionalController;
 use App\Http\Controllers\ProfileTeachingAssignmentController;
+use App\Http\Controllers\ProfilePositionHistoryController;
 use App\Http\Controllers\RolePermissionController;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
@@ -51,7 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::get('roles', function () {
         return response()->json(['success' => true, 'data' => \App\Models\Role::all()]);
-    });
+    })->middleware('permission:employee.view');
 
     Route::middleware('permission:auth.role.manage')->group(function () {
         Route::get('role-permissions', [RolePermissionController::class, 'index']);
@@ -146,4 +147,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile/teaching-assignments', [ProfileTeachingAssignmentController::class, 'store']);
     Route::put('/profile/teaching-assignments/{teachingAssignment}', [ProfileTeachingAssignmentController::class, 'update']);
     Route::delete('/profile/teaching-assignments/{teachingAssignment}', [ProfileTeachingAssignmentController::class, 'destroy']);
+    Route::get('/profile/position-histories', [ProfilePositionHistoryController::class, 'index']);
+    Route::post('/profile/position-histories', [ProfilePositionHistoryController::class, 'store']);
+    Route::put('/profile/position-histories/{positionHistory}', [ProfilePositionHistoryController::class, 'update']);
+    Route::delete('/profile/position-histories/{positionHistory}', [ProfilePositionHistoryController::class, 'destroy']);
 });
