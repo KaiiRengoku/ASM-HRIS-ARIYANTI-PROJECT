@@ -1,0 +1,23 @@
+{
+  "name": "asm-hris",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ASM HRIS - Human Resource Information System",
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail \"cd backend && C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe artisan serve\" \"cd backend && C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe artisan reverb:start\" \"cd backend && C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe artisan queue:work\" \"cd frontend && npm run dev\"",
+    "dev:backend": "cd backend && C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe artisan serve",
+    "dev:reverb": "cd backend && C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe artisan reverb:start",
+    "dev:queue": "cd backend && C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe artisan queue:work",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "cd frontend && npm install && cd ..\\backend && composer install",
+    "migrate": "cd backend && php artisan migrate",
+    "migrate:fresh": "cd backend && php artisan migrate:fresh --seed",
+    "test": "cd backend && php artisan test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
