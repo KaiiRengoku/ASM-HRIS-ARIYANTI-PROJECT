@@ -45,6 +45,24 @@ export interface Employee {
   updated_at: string;
 }
 
+export interface EmployeePayload {
+  nik: string;
+  nama_lengkap: string;
+  email: string;
+  nomor_hp?: string;
+  jenis_kelamin?: 'L' | 'P' | null;
+  status_kepegawaian?: string;
+  tanggal_masuk_kerja?: string;
+  nip?: string;
+  nidn?: string;
+  alamat?: string;
+  is_dosen?: boolean;
+  position_id?: number | null;
+  role?: string;
+  password?: string;
+}
+
+
 export interface EmployeeListResponse {
   data: Employee[];
   meta: {
@@ -65,12 +83,12 @@ export const getEmployee = async (id: number): Promise<Employee> => {
   return response.data.data;
 };
 
-export const createEmployee = async (data: Partial<Employee>): Promise<Employee> => {
+export const createEmployee = async (data: EmployeePayload): Promise<Employee> => {
   const response = await api.post('/employees', data);
   return response.data.data;
 };
 
-export const updateEmployee = async (id: number, data: Partial<Employee>): Promise<Employee> => {
+export const updateEmployee = async (id: number, data: EmployeePayload): Promise<Employee> => {
   const response = await api.put(`/employees/${id}`, data);
   return response.data.data;
 };

@@ -13,6 +13,7 @@ import PD2Dashboard from "@/features/dashboard/pages/PD2Dashboard";
 import PD3Dashboard from "@/features/dashboard/pages/PD3Dashboard";
 import KabagDashboard from "@/features/dashboard/pages/KabagDashboard";
 import PegawaiDashboard from "@/features/dashboard/pages/PegawaiDashboard";
+import DosenDashboard from "@/features/dashboard/pages/DosenDashboard";
 import EmployeeListPage from "@/features/employees/pages/EmployeeListPage";
 import EmployeeFormPage from "@/features/employees/pages/EmployeeFormPage";
 import EmployeeDetailPage from "@/features/employees/pages/EmployeeDetailPage";
@@ -20,7 +21,6 @@ import DocumentListPage from "@/features/documents/pages/DocumentListPage";
 import LeaveListPage from "@/features/leave/pages/LeaveListPage";
 import LeaveFormPage from "@/features/leave/pages/LeaveFormPage";
 import LeaveDetailPage from "@/features/leave/pages/LeaveDetailPage";
-import LeaveEditPage from "@/features/leave/pages/LeaveEditPage";
 import CalendarPage from "@/features/calendar/pages/CalendarPage";
 import ReportPage from "@/features/reports/pages/ReportPage";
 import ApprovalPage from "@/features/approval/pages/ApprovalPage";
@@ -41,7 +41,8 @@ const protectedRoutes = [
   { path: "/dashboard/pd-2", element: <PD2Dashboard />, roles: ["PD_II"] },
   { path: "/dashboard/pd-3", element: <PD3Dashboard />, roles: ["PD_III"] },
   { path: "/dashboard/kabag", element: <KabagDashboard />, roles: ["KABAG"] },
-  { path: "/dashboard/pegawai", element: <PegawaiDashboard />, roles: ["DOSEN", "PEGAWAI"] },
+  { path: "/dashboard/dosen", element: <DosenDashboard />, roles: ["DOSEN"] },
+  { path: "/dashboard/pegawai", element: <PegawaiDashboard />, roles: ["PEGAWAI"] },
   { path: "/pegawai", element: <EmployeeListPage />, roles: ALL_ROLES, permissions: ["employee.view"] },
   { path: "/pegawai/create", element: <EmployeeFormPage />, roles: ALL_ROLES, permissions: ["employee.create"] },
   { path: "/pegawai/:id", element: <EmployeeDetailPage />, roles: ALL_ROLES, permissions: ["employee.view"] },
@@ -50,7 +51,6 @@ const protectedRoutes = [
   { path: "/cuti", element: <LeaveListPage />, roles: ALL_ROLES, permissions: ["leave.view"] },
   { path: "/cuti/create", element: <LeaveFormPage />, roles: ALL_ROLES, permissions: ["leave.create"] },
   { path: "/cuti/:id", element: <LeaveDetailPage />, roles: ALL_ROLES, permissions: ["leave.view"] },
-  { path: "/cuti/:id/edit", element: <LeaveEditPage />, roles: ALL_ROLES, permissions: ["leave.update"] },
   { path: "/kalender", element: <CalendarPage />, roles: ALL_ROLES },
   { path: "/laporan", element: <ReportPage />, roles: ALL_ROLES, permissions: ["report.view"] },
   { path: "/approval", element: <ApprovalPage />, roles: ["HRD", "KABAG"], permissions: ["leave.approve"] },

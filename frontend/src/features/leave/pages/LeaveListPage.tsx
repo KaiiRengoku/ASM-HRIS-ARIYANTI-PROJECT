@@ -32,6 +32,7 @@ export default function LeaveListPage() {
     const [rejectReason, setRejectReason] = useState('');
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [deleteReason, setDeleteReason] = useState('');
+    const [cancelId, setCancelId] = useState<number | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
     const [adjustOpen, setAdjustOpen] = useState(false);
     const [createForm, setCreateForm] = useState<any>({ employee_id: '', leave_type_id: '', start_date: '', end_date: '', reason: '', emergency_address: '', emergency_contact: '', is_emergency: false, emergency_reason: '' });
@@ -139,12 +140,12 @@ export default function LeaveListPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold">Cuti & Izin</h1>
                     <p className="text-muted-foreground">Kelola pengajuan cuti dan izin</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     {canAdjust && (
                     <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
                         <DialogTrigger asChild>
@@ -286,16 +287,16 @@ export default function LeaveListPage() {
             </Card>
 
             <Card>
-                <CardContent className="p-0">
+                <CardContent className="overflow-x-auto p-0">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Pegawai</TableHead>
                                 <TableHead>Jenis</TableHead>
-                                <TableHead>Tanggal</TableHead>
-                                <TableHead>Total Hari</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Aksi</TableHead>
+                                <TableHead className="whitespace-nowrap">Tanggal</TableHead>
+                                <TableHead className="whitespace-nowrap">Total Hari</TableHead>
+                                <TableHead className="whitespace-nowrap">Status</TableHead>
+                                <TableHead className="text-right whitespace-nowrap">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -312,7 +313,7 @@ export default function LeaveListPage() {
                                     <TableRow key={leave.id}>
                                         <TableCell>{leave.employee?.nama_lengkap || '-'}</TableCell>
                                         <TableCell>{leave.leave_type?.name || '-'}</TableCell>
-                                        <TableCell>{leave.start_date} s.d {leave.end_date}</TableCell>
+                                        <TableCell className="whitespace-nowrap">{leave.start_date} s.d {leave.end_date}</TableCell>
                                         <TableCell>{leave.total_days}</TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded-full text-xs ${
@@ -326,9 +327,6 @@ export default function LeaveListPage() {
                                         <TableCell className="text-right">
                                             <div className="flex flex-wrap justify-end gap-2">
                                             <Link to={`/cuti/${leave.id}`}><Button variant="outline" size="sm">Detail</Button></Link>
-                                            {isHrd && ['Pending', 'Disetujui Kepala Bagian'].includes(leave.status) && (
-                                                <Link to={`/cuti/${leave.id}/edit`}><Button variant="outline" size="sm">Edit</Button></Link>
-                                            )}
                                             {canApprove && leave.status === 'Pending' && (
                                                 <>
                                                     <Button size="sm" onClick={() => approveMutation.mutate(leave.id)} className="bg-green-600 hover:bg-green-700 text-white">Setujui</Button>
@@ -339,7 +337,7 @@ export default function LeaveListPage() {
                                                 <Button size="sm" onClick={() => approveMutation.mutate(leave.id)} className="bg-green-600 hover:bg-green-700 text-white">Finalisasi</Button>
                                             )}
                                             {['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'].includes(leave.status) && (
-                                                <Button variant="outline" size="sm" onClick={() => { if (confirm('Batalkan pengajuan cuti ini?')) cancelMutation.mutate(leave.id); }}>Batalkan</Button>
+                                                <Button variant="outline" size="sm" onClick={() => setCancelId(leave.id)}>Batalkan</Button>
                                             )}
                                             {canDelete && (
                                                 <Button variant="destructive" size="sm" onClick={() => { setDeleteId(leave.id); setDeleteReason(''); }}>Hapus</Button>
@@ -380,6 +378,25 @@ export default function LeaveListPage() {
                                 {deleteMutation.isPending ? 'Menghapus...' : 'Hapus Permanen'}
                             </Button>
                             <Button variant="outline" onClick={() => { setDeleteId(null); setDeleteReason(''); }}>Batal</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={cancelId !== null} onOpenChange={(v) => { if (!v) setCancelId(null); }}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Batalkan Pengajuan Cuti</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Yakin ingin membatalkan pengajuan cuti ini?</p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="destructive"
+                                onClick={() => { if (cancelId) cancelMutation.mutate(cancelId); setCancelId(null); }}
+                                disabled={cancelMutation.isPending}
+                            >
+                                {cancelMutation.isPending ? 'Memproses...' : 'Ya'}
+                            </Button>
+                            <Button variant="outline" onClick={() => setCancelId(null)}>Tidak</Button>
                         </div>
                     </div>
                 </DialogContent>

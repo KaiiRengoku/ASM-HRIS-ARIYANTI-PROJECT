@@ -13,10 +13,38 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Checkbox } from '@/components/ui/checkbox';
 import { ReadOnlyField } from '@/components/ui/read-only-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../services/employeeService';
+import { getEmployees, createEmployee, updateEmployee, deleteEmployee, type EmployeePayload } from '../services/employeeService';
 import { toast } from '@/components/ui/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
 
-const emptyForm = {
+const extractErrorMessage = (e: unknown, fallback: string): string => {
+  if (e instanceof Error && e.message) return e.message;
+  if (e && typeof e === 'object' && 'response' in e) {
+    const response = e.response;
+    if (response && typeof response === 'object' && 'data' in response) {
+      const data = response.data;
+      if (data && typeof data === 'object') {
+        if ('errors' in data && data.errors && typeof data.errors === 'object') {
+          for (const value of Object.values(data.errors)) {
+            if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+            if (typeof value === 'string') return value;
+          }
+        }
+        if ('message' in data && typeof data.message === 'string' && data.message) return data.message;
+      }
+    }
+  }
+  return fallback;
+};
+
+export interface EmployeeFormState {
+  nik: string; nama_lengkap: string; email: string; nomor_hp: string;
+  jenis_kelamin: string; status_kepegawaian: string;
+  tanggal_masuk_kerja: string; nip: string; nidn: string; alamat: string;
+  password: string; role: string; position_id: string; is_dosen: boolean;
+}
+
+const emptyForm: EmployeeFormState = {
   nik: '', nama_lengkap: '', email: '', nomor_hp: '',
   jenis_kelamin: '', status_kepegawaian: 'aktif',
   tanggal_masuk_kerja: '', nip: '', nidn: '', alamat: '',
@@ -28,10 +56,12 @@ export default function EmployeeListPage() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState<Record<string, any>>(emptyForm);
+  const [form, setForm] = useState<EmployeeFormState>(emptyForm);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountEmp, setAccountEmp] = useState<any>(null);
   const [accountForm, setAccountForm] = useState({ password: '', role: 'PEGAWAI', position_id: '' });
+  const [showAccountPassword, setShowAccountPassword] = useState(false);
+  const [showFormPassword, setShowFormPassword] = useState(false);
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
   const canCreate = hasPermission('employee.create');
@@ -59,16 +89,33 @@ export default function EmployeeListPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (payload: any) => {
-      if (!editId && !/^[0-9]{16}$/.test(payload.nik || '')) throw new Error('NIK harus 16 digit numerik.');
-      return editId ? updateEmployee(editId, payload) : createEmployee(payload);
+    mutationFn: (payload: EmployeeFormState) => {
+      const nik = payload.nik.trim();
+      if (!/^[0-9]{16}$/.test(nik)) throw new Error('NIK harus 16 digit numerik (hanya angka).');
+      const data: EmployeePayload = {
+        nik,
+        nama_lengkap: payload.nama_lengkap,
+        email: payload.email,
+        nomor_hp: payload.nomor_hp,
+        jenis_kelamin: payload.jenis_kelamin === 'L' || payload.jenis_kelamin === 'P' ? payload.jenis_kelamin : null,
+        status_kepegawaian: payload.status_kepegawaian,
+        tanggal_masuk_kerja: payload.tanggal_masuk_kerja,
+        nip: payload.nip,
+        nidn: payload.nidn,
+        alamat: payload.alamat,
+        is_dosen: payload.is_dosen,
+        position_id: payload.position_id ? Number(payload.position_id) : null,
+        role: payload.role,
+        password: payload.password,
+      };
+      return editId ? updateEmployee(editId, data) : createEmployee(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({ title: 'Berhasil', description: editId ? 'Data pegawai diperbarui.' : 'Pegawai dan akun berhasil ditambahkan.' });
       closeDialog();
     },
-    onError: (e: any) => toast({ title: 'Gagal', description: e.response?.data?.message || e.message || 'Terjadi kesalahan.', variant: 'destructive' }),
+    onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e, 'Terjadi kesalahan.'), variant: 'destructive' }),
   });
 
   const deleteMutation = useMutation({
@@ -77,7 +124,7 @@ export default function EmployeeListPage() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({ title: 'Berhasil', description: 'Data pegawai dan akun dihapus permanen.' });
     },
-    onError: (e: any) => toast({ title: 'Gagal', description: e.response?.data?.message || 'Terjadi kesalahan.', variant: 'destructive' }),
+    onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e, 'Terjadi kesalahan.'), variant: 'destructive' }),
   });
 
   const accountMutation = useMutation({
@@ -88,7 +135,7 @@ export default function EmployeeListPage() {
       setAccountOpen(false);
       setAccountEmp(null);
     },
-    onError: (e: any) => toast({ title: 'Gagal', description: e.response?.data?.message || 'Terjadi kesalahan.', variant: 'destructive' }),
+    onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e, 'Terjadi kesalahan.'), variant: 'destructive' }),
   });
 
   const deleteAccountMutation = useMutation({
@@ -97,7 +144,7 @@ export default function EmployeeListPage() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({ title: 'Berhasil', description: 'Akun dihapus permanen. Data pegawai tetap ada.' });
     },
-    onError: (e: any) => toast({ title: 'Gagal', description: e.response?.data?.message || 'Terjadi kesalahan.', variant: 'destructive' }),
+    onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e, 'Terjadi kesalahan.'), variant: 'destructive' }),
   });
 
   const openCreate = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
@@ -115,7 +162,7 @@ export default function EmployeeListPage() {
     setOpen(true);
   };
   const closeDialog = () => { setOpen(false); setEditId(null); setForm(emptyForm); };
-  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const set = <K extends keyof EmployeeFormState>(k: K, v: EmployeeFormState[K]) => setForm(f => ({ ...f, [k]: v }));
 
   const openAccount = (emp: any) => {
     setAccountEmp(emp);
@@ -150,7 +197,19 @@ export default function EmployeeListPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>NIK *</Label>
-                  <Input value={form.nik} onChange={(e) => set('nik', e.target.value)} maxLength={16} required />
+                  <Input
+                    value={form.nik}
+                    onChange={(e) => set('nik', e.target.value.replace(/\D/g, '').slice(0, 16))}
+                    inputMode="numeric"
+                    pattern="[0-9]{16}"
+                    maxLength={16}
+                    title="NIK harus 16 digit numerik (hanya angka)"
+                    placeholder="16 digit angka"
+                    required
+                  />
+                  {form.nik.length > 0 && form.nik.length < 16 && (
+                    <p className="text-xs text-destructive">NIK harus 16 digit ({form.nik.length}/16).</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Nama Lengkap *</Label>
@@ -194,7 +253,13 @@ export default function EmployeeListPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Status Kepegawaian</Label>
-                  <Input value={form.status_kepegawaian} onChange={(e) => set('status_kepegawaian', e.target.value)} />
+                  <Select value={form.status_kepegawaian || 'aktif'} onValueChange={(v) => set('status_kepegawaian', v)}>
+                    <SelectTrigger><SelectValue placeholder="Pilih status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="aktif">Aktif</SelectItem>
+                      <SelectItem value="nonaktif">Tidak Aktif</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 {editId && (
                 <ReadOnlyField label="Jabatan" value={employees.find((e: any) => e.id === editId)?.position} />
@@ -213,7 +278,25 @@ export default function EmployeeListPage() {
                   <p className="text-sm font-medium">Akun Login (otomatis dibuat, login pakai NIK + kata sandi)</p>
                   <div className="space-y-2">
                     <Label>Kata Sandi *</Label>
-                    <Input type="password" autoComplete="new-password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="Minimal 8 karakter" required={!editId} />
+                    <div className="relative">
+                      <Input
+                        type={showFormPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={form.password}
+                        onChange={(e) => set('password', e.target.value)}
+                        placeholder="Minimal 8 karakter"
+                        className="pr-10"
+                        required={!editId}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowFormPassword(v => !v)}
+                        aria-label={showFormPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showFormPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
@@ -369,7 +452,24 @@ export default function EmployeeListPage() {
             </div>
             <div className="space-y-2">
               <Label>Kata Sandi Baru (kosongkan bila tidak diubah)</Label>
-              <Input type="password" autoComplete="new-password" value={accountForm.password} onChange={(e) => setAccountForm(f => ({ ...f, password: e.target.value }))} placeholder="Minimal 8 karakter" />
+              <div className="relative">
+                <Input
+                  type={showAccountPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={accountForm.password}
+                  onChange={(e) => setAccountForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Minimal 8 karakter"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAccountPassword(v => !v)}
+                  aria-label={showAccountPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showAccountPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Jabatan (opsional — kosongkan untuk ikut role)</Label>

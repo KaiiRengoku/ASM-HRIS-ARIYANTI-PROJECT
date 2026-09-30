@@ -526,50 +526,6 @@ class LeaveController extends Controller
         return response()->json(['success' => true, 'message' => 'Pengajuan dibatalkan.']);
     }
 
-    public function update(Request $request, LeaveRequest $leave)
-    {
-        // Guarded by permission:leave.update
-
-        // Only allowed if status is Pending or Disetujui Kepala Bagian (not finalized)
-        if (!in_array($leave->status, ['Pending', 'Disetujui Kepala Bagian'])) {
-            return response()->json(['success' => false, 'message' => 'Cuti dengan status ini tidak dapat diedit.'], 400);
-        }
-
-        $validated = $request->validate([
-            'leave_type_id' => ['required', 'exists:leave_types,id'],
-            'start_date' => ['required', 'date', 'before_or_equal:end_date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'reason' => ['nullable', 'string'],
-        ]);
-
-        $emp = \App\Models\Employee::find($leave->employee_id);
-        $totalDays = \App\Services\WorkingDayService::count($validated['start_date'], $validated['end_date'], $emp?->organizational_unit_id);
-        if ($totalDays < 1) return response()->json(['success' => false, 'message' => 'Total hari kerja 0. Rentang hanya berisi akhir pekan/libur.'], 400);
-
-        $old = $leave->only(['leave_type_id', 'start_date', 'end_date', 'total_days']);
-        $leave->update([
-            'leave_type_id' => $validated['leave_type_id'],
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'],
-            'total_days' => $totalDays,
-            'reason' => $validated['reason'],
-        ]);
-
-        AuditLog::create([
-            'user_id' => $request->user()->id,
-            'action' => 'UPDATE_LEAVE',
-            'auditable_type' => LeaveRequest::class,
-            'auditable_id' => $leave->id,
-            'old_values' => $old,
-            'new_values' => $leave->only(['leave_type_id', 'start_date', 'end_date', 'total_days']),
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'created_at' => now(),
-        ]);
-
-        return response()->json(['success' => true, 'data' => $leave, 'message' => 'Cuti berhasil diperbarui.']);
-    }
-
     // HRD can adjust balance manually (already in request)
 
     public function destroy(Request $request, LeaveRequest $leave)

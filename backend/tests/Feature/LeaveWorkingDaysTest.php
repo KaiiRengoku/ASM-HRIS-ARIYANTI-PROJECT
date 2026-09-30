@@ -105,32 +105,4 @@ class LeaveWorkingDaysTest extends TestCase
             'end_date' => $mon,
         ])->assertOk()->assertJsonPath('data.total_days', '2.00');
     }
-
-    public function test_put_hrd_ke_rentang_weekend_ditolak_400(): void
-    {
-        $hrd = $this->buatUser('1234567890123456', 'HRD');
-        $peg = $this->buatUser('1234567890123457', 'PEGAWAI');
-        $employee = Employee::find($peg->employee_id);
-        $type = $this->buatAnnualDenganSaldo($employee);
-        [$fri, $mon] = $this->fridayMondayFuture();
-        [$sat, $sun] = $this->weekendFuture();
-
-        $leave = LeaveRequest::create([
-            'employee_id' => $employee->id,
-            'leave_type_id' => $type->id,
-            'start_date' => $fri,
-            'end_date' => $mon,
-            'total_days' => 2,
-            'status' => 'Pending',
-            'submitted_at' => now(),
-            'created_by' => $hrd->id,
-        ]);
-
-        $this->actingAs($hrd)->putJson("/api/leaves/{$leave->id}", [
-            'leave_type_id' => $type->id,
-            'start_date' => $sat,
-            'end_date' => $sun,
-            'reason' => 'ubah jadwal',
-        ])->assertStatus(400)->assertJsonFragment(['message' => 'Total hari kerja 0. Rentang hanya berisi akhir pekan/libur.']);
-    }
 }

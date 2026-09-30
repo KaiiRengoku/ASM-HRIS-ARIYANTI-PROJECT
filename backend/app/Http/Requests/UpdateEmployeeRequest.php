@@ -48,4 +48,19 @@ class UpdateEmployeeRequest extends FormRequest
             'nomor_rekening' => ['nullable', 'string', 'max:50'],
         ];
     }
+    public function messages(): array
+    {
+        return [
+            'nik.required' => 'NIK wajib diisi.',
+            'nik.size' => 'NIK harus 16 digit.',
+            'nik.regex' => 'NIK harus 16 digit numerik (hanya angka).',
+            'nik.unique' => 'NIK sudah terdaftar, gunakan NIK lain.',
+            'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
+            'tanggal_masuk_kerja.required' => 'Tanggal masuk wajib diisi.',
+            'role.required' => 'Role wajib dipilih.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Email sudah terdaftar.',
+        ];
+    }
 }

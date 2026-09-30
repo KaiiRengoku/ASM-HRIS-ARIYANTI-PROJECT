@@ -19,13 +19,13 @@ export default function LeaveDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [cancelOpen, setCancelOpen] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
     const { data: leave, isLoading, error } = useQuery({
         queryKey: ['leave', id],
         queryFn: () => fetchLeave(Number(id)),
     });
     const { hasPermission } = useAuthStore();
-    const isHrd = hasPermission('leave.update');
     const canDelete = hasPermission('leave.delete');
     const canVerify = hasPermission('leave.approve');
     const queryClient = useQueryClient();
@@ -76,13 +76,8 @@ export default function LeaveDetailPage() {
           <Link to="/cuti">
             <Button variant="outline">Kembali</Button>
           </Link>
-          {isHrd && ['Pending', 'Disetujui Kepala Bagian'].includes(leave.status) && (
-            <Link to={`/cuti/${id}/edit`}>
-              <Button>Edit</Button>
-            </Link>
-          )}
           {['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'].includes(leave.status) && (
-            <Button variant="outline" onClick={() => { if (confirm('Batalkan pengajuan cuti ini?')) cancelMutation.mutate(); }}>Batalkan</Button>
+            <Button variant="outline" onClick={() => setCancelOpen(true)}>Batalkan</Button>
           )}
           {canDelete && (
             <Button variant="destructive" onClick={() => { setDeleteReason(''); setDeleteOpen(true); }}>Hapus</Button>
@@ -103,6 +98,25 @@ export default function LeaveDetailPage() {
                                 {deleteMutation.isPending ? 'Menghapus...' : 'Hapus Permanen'}
                             </Button>
                             <Button variant="outline" onClick={() => setDeleteOpen(false)}>Batal</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Batalkan Pengajuan Cuti</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Yakin ingin membatalkan pengajuan cuti ini?</p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="destructive"
+                                onClick={() => { cancelMutation.mutate(); setCancelOpen(false); }}
+                                disabled={cancelMutation.isPending}
+                            >
+                                {cancelMutation.isPending ? 'Memproses...' : 'Ya'}
+                            </Button>
+                            <Button variant="outline" onClick={() => setCancelOpen(false)}>Tidak</Button>
                         </div>
                     </div>
                 </DialogContent>

@@ -108,14 +108,13 @@ const downloadBlob = async (url: string, filename: string) => {
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">Laporan</h1>
-            <p className="text-muted-foreground">Ekspor data dalam format CSV, Excel, atau PDF</p>
+            <p className="text-muted-foreground">Ekspor data dalam format CSV atau PDF</p>
             <Card>
                 <CardHeader>
                     <CardTitle>Ekspor Data Pegawai</CardTitle>
                 </CardHeader>
                 <CardContent className="flex gap-2">
                     <Button onClick={exportEmployees}>CSV</Button>
-                    <Button variant="outline" onClick={() => downloadBlob('/reports/employees/excel', `pegawai_${new Date().toISOString().slice(0,10)}.xls`)}>Excel</Button>
                     <Button variant="outline" onClick={() => downloadBlob('/reports/employees/pdf', `pegawai_${new Date().toISOString().slice(0,10)}.pdf`)}>PDF</Button>
                 </CardContent>
             </Card>
@@ -164,24 +163,23 @@ const downloadBlob = async (url: string, filename: string) => {
                     </div>
                     <div className="flex gap-2">
                         <Button onClick={exportLeaves}>CSV</Button>
-                        <Button variant="outline" onClick={() => downloadBlob(`/reports/leaves/excel${leaveQuery()}`, `cuti_${new Date().toISOString().slice(0,10)}.xls`)}>Excel</Button>
                         <Button variant="outline" onClick={() => downloadBlob(`/reports/leaves/pdf${leaveQuery()}`, `cuti_${new Date().toISOString().slice(0,10)}.pdf`)}>PDF</Button>
                     </div>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     <CardTitle>Rekap Sisa Cuti Tahunan per Pegawai</CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <Select value={recapScope} onValueChange={setRecapScope}>
-                            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Semua Pegawai</SelectItem>
                                 <SelectItem value="akademik">Lingkungan Akademik (Dosen)</SelectItem>
                             </SelectContent>
                         </Select>
                         <Select value={recapUnit || 'all'} onValueChange={(v) => setRecapUnit(v === 'all' ? '' : v)}>
-                            <SelectTrigger className="w-44"><SelectValue placeholder="Semua Unit" /></SelectTrigger>
+                            <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Semua Unit" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Semua Unit</SelectItem>
                                 {units?.map((u: any) => (
@@ -189,22 +187,22 @@ const downloadBlob = async (url: string, filename: string) => {
                                 ))}
                             </SelectContent>
                         </Select>
-                        <div className="w-24">
+                        <div className="w-full sm:w-24">
                             <Input type="number" value={recapYear} onChange={(e) => setRecapYear(e.target.value)} placeholder="Tahun" />
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="overflow-x-auto p-0">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>NIK</TableHead>
                                 <TableHead>Nama</TableHead>
                                 <TableHead>Jabatan</TableHead>
-                                <TableHead>Hak</TableHead>
-                                <TableHead>Penyesuaian</TableHead>
-                                <TableHead>Terpakai</TableHead>
-                                <TableHead>Sisa</TableHead>
+                                <TableHead className="whitespace-nowrap">Hak</TableHead>
+                                <TableHead className="whitespace-nowrap">Penyesuaian</TableHead>
+                                <TableHead className="whitespace-nowrap">Terpakai</TableHead>
+                                <TableHead className="whitespace-nowrap">Sisa</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -221,7 +219,7 @@ const downloadBlob = async (url: string, filename: string) => {
                                         <TableCell>{r.entitled_days}</TableCell>
                                         <TableCell>{r.adjustment_days}</TableCell>
                                         <TableCell>{r.used_days}</TableCell>
-                                        <TableCell className="font-bold">{r.remaining_days}</TableCell>
+                                        <TableCell className="font-bold whitespace-nowrap">{r.remaining_days}</TableCell>
                                     </TableRow>
                                 ))
                             )}

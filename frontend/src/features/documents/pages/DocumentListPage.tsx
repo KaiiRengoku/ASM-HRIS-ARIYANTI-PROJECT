@@ -37,6 +37,10 @@ export default function DocumentListPage() {
     const queryClient = useQueryClient();
 
     const [filterEmployeeId, setFilterEmployeeId] = useState('');
+    const [previewDoc, setPreviewDoc] = useState<{ id: number; file_name: string; document_type: string; mime_type: string | null } | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [previewError, setPreviewError] = useState<string | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
     const debouncedSearch = useDebounce(search);
 
     const { data, isLoading, error } = useQuery({
@@ -54,6 +58,39 @@ export default function DocumentListPage() {
         document.body.appendChild(link);
         link.click();
         link.remove();
+    };
+
+    const closePreview = () => {
+        setPreviewDoc(null);
+        setPreviewError(null);
+        setPreviewUrl((current) => {
+            if (current) window.URL.revokeObjectURL(current);
+            return null;
+        });
+    };
+
+    const openPreview = async (doc: { id: number; file_name: string; document_type: string; mime_type: string | null }) => {
+        setPreviewDoc(doc);
+        setPreviewError(null);
+        setPreviewUrl(null);
+        setPreviewLoading(true);
+        try {
+            const res = await api.get(`/documents/${doc.id}/preview`, { responseType: 'blob' });
+            const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: doc.mime_type || res.data.type }));
+            setPreviewUrl(blobUrl);
+        } catch {
+            setPreviewError('Gagal memuat pratinjau dokumen.');
+        } finally {
+            setPreviewLoading(false);
+        }
+    };
+
+    const previewKind = (doc: { mime_type: string | null; file_name: string }): 'image' | 'pdf' | 'other' => {
+        const mime = doc.mime_type || '';
+        const name = (doc.file_name || '').toLowerCase();
+        if (mime.startsWith('image/') || /\.(jpe?g|png)$/.test(name)) return 'image';
+        if (mime === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+        return 'other';
     };
 
     const { data: employees } = useQuery({
@@ -224,6 +261,7 @@ export default function DocumentListPage() {
                                         <TableCell>{new Date(doc.created_at).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex flex-wrap justify-end gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => openPreview(doc)}>Preview</Button>
                                             <Button variant="outline" size="sm" onClick={() => downloadDocument(doc)}>Unduh</Button>
                                             <Button
                                                 variant="destructive"
@@ -267,6 +305,37 @@ export default function DocumentListPage() {
                     </div>
                 </div>
             )}
+
+            <Dialog open={!!previewDoc} onOpenChange={(v) => { if (!v) closePreview(); }}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {previewDoc ? `${previewDoc.document_type} — ${previewDoc.file_name}` : 'Pratinjau Dokumen'}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="min-h-[50vh] flex items-center justify-center rounded-md border bg-muted/30 p-2">
+                        {previewLoading ? (
+                            <p className="text-muted-foreground">Memuat pratinjau...</p>
+                        ) : previewError ? (
+                            <p className="text-destructive">{previewError}</p>
+                        ) : previewUrl && previewDoc ? (
+                            previewKind(previewDoc) === 'image' ? (
+                                <img src={previewUrl} alt={previewDoc.file_name} className="max-h-[70vh] w-auto rounded object-contain" />
+                            ) : previewKind(previewDoc) === 'pdf' ? (
+                                <iframe src={previewUrl} title={previewDoc.file_name} className="h-[70vh] w-full rounded" />
+                            ) : (
+                                <p className="text-muted-foreground">Pratinjau tidak tersedia untuk jenis file ini. Silakan unduh untuk membuka.</p>
+                            )
+                        ) : null}
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        {previewDoc && (
+                            <Button variant="outline" onClick={() => downloadDocument(previewDoc)}>Unduh</Button>
+                        )}
+                        <Button variant="outline" onClick={closePreview}>Tutup</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

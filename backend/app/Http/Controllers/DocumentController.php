@@ -125,6 +125,24 @@ class DocumentController extends Controller
         return Storage::disk($document->storage_disk)->download($document->storage_path, $document->file_name);
     }
 
+    public function preview(Request $request, EmployeeDocument $document)
+    {
+        if (!$this->canView($request, $document->employee_id)) {
+            return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
+        }
+
+        $disk = Storage::disk($document->storage_disk);
+
+        if (!$disk->exists($document->storage_path)) {
+            return response()->json(['success' => false, 'message' => 'File tidak ditemukan.'], 404);
+        }
+
+        return $disk->response($document->storage_path, $document->file_name, [
+            'Content-Disposition' => 'inline; filename="' . addslashes($document->file_name) . '"',
+        ]);
+    }
+
+
     public function destroy(Request $request, EmployeeDocument $document)
     {
         if (!$this->canMutate($request, $document->employee_id)) {

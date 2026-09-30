@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -7,6 +7,7 @@ import { ReadOnlyField } from '@/components/ui/read-only-field';
 import { api } from '@/services/api';
 import { getEmployee } from '../services/employeeService';
 import { useAuthStore } from '@/stores/authStore';
+import { ArrowLeft } from 'lucide-react';
 
 const getMasaKerja = (tanggalMasuk: string | null | undefined) => {
     if (!tanggalMasuk) return '-';
@@ -38,6 +39,7 @@ const downloadBiodata = async (kind: 'pdf' | 'word', employeeId: number, nik: st
 
 export default function EmployeeDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { hasPermission } = useAuthStore();
   const canUpdate = hasPermission('employee.update');
   const canManageAccount = hasPermission('auth.user.update');
@@ -57,8 +59,18 @@ export default function EmployeeDetailPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Detail Pegawai</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 -ml-3">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Kembali"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Detail Pegawai</h1>
+        </div>
         <div className="flex flex-wrap gap-2">
           {canUpdate && (
             <Link to={`/pegawai/${id}/edit`}>

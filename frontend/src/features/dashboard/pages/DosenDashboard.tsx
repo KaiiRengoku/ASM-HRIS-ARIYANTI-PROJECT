@@ -12,23 +12,32 @@ interface PengajuanItem {
     status: string;
 }
 
+interface Matkul {
+    nama_matkul?: string;
+    kode_matkul?: string;
+    sks?: number;
+    kelas?: string;
+}
+
 interface Libur {
     name: string;
     date: string;
 }
 
-interface PegawaiStats {
+interface DosenStats {
     sisa_cuti?: number;
     total_pengajuan?: number;
     unread_notifications?: number;
     total_cuti?: number;
     employee_id?: number;
     pengajuan_terbaru?: PengajuanItem[];
+    mengajar?: { total_sks?: number; matkul?: Matkul[] };
+    penelitian?: { terisi?: boolean };
     libur_terdekat?: Libur[];
 }
 
-const fetchStats = async (): Promise<PegawaiStats> => {
-    const res = await api.get<{ success: boolean; data: PegawaiStats }>('/dashboard/stats');
+const fetchStats = async (): Promise<DosenStats> => {
+    const res = await api.get<{ success: boolean; data: DosenStats }>('/dashboard/stats');
     return res.data.data;
 };
 
@@ -69,7 +78,7 @@ const statusBadge = (status: string): string => {
     return 'bg-gray-100 text-gray-800';
 };
 
-export default function PegawaiDashboard() {
+export default function DosenDashboard() {
     const { data, isLoading, error } = useQuery({
         queryKey: ['dashboard-stats'],
         queryFn: fetchStats,
@@ -79,7 +88,7 @@ export default function PegawaiDashboard() {
         return (
             <div className="space-y-6">
                 <div>
-                    <h1 className="text-2xl font-bold">Dashboard Pegawai</h1>
+                    <h1 className="text-2xl font-bold">Dashboard Dosen</h1>
                     <p className="text-muted-foreground">Memuat data...</p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -102,7 +111,7 @@ export default function PegawaiDashboard() {
     if (error) {
         return (
             <div className="space-y-6">
-                <h1 className="text-2xl font-bold">Dashboard Pegawai</h1>
+                <h1 className="text-2xl font-bold">Dashboard Dosen</h1>
                 <p className="text-destructive">Gagal memuat data. Coba refresh.</p>
             </div>
         );
@@ -111,7 +120,7 @@ export default function PegawaiDashboard() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold">Dashboard Pegawai</h1>
+                <h1 className="text-2xl font-bold">Dashboard Dosen</h1>
                 <p className="text-muted-foreground">Self-service cuti dan profil</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -202,6 +211,40 @@ export default function PegawaiDashboard() {
                         >
                             Unduh Biodata Word
                         </QuickAction>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Beban Mengajar — {data?.mengajar?.total_sks ?? 0} SKS</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {data?.mengajar?.matkul?.length ? (
+                            <div className="space-y-3">
+                                {data.mengajar.matkul.map((m, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0">
+                                        <div className="min-w-0">
+                                            <p className="font-medium truncate">{m.nama_matkul || '-'} ({m.kode_matkul || '-'})</p>
+                                            <p className="text-sm text-muted-foreground">Kelas {m.kelas || '-'}</p>
+                                        </div>
+                                        <span className="shrink-0 text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">{m.sks ?? 0} SKS</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-muted-foreground">Belum ada beban mengajar</p>
+                        )}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Penelitian</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <span className={`text-xs px-2 py-1 rounded-full ${data?.penelitian?.terisi ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            {data?.penelitian?.terisi ? 'Sudah terisi' : 'Belum terisi — lengkapi di Profil'}
+                        </span>
                     </CardContent>
                 </Card>
             </div>

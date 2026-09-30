@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { LayoutDashboard, Users, FileText, CalendarDays, ClipboardCheck, Calendar, BarChart3, History, ShieldCheck, X } from "lucide-react";
@@ -27,6 +28,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     if (hasRole("PD_II")) return "/dashboard/pd-2";
     if (hasRole("PD_III")) return "/dashboard/pd-3";
     if (hasRole("KABAG")) return "/dashboard/kabag";
+    if (hasRole("DOSEN")) return "/dashboard/dosen";
     return "/dashboard/pegawai";
   })();
 
@@ -62,7 +64,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               }
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {item.label}
+              <span className="truncate">{item.label}</span>
             </NavLink>
           );
         })}
@@ -80,7 +82,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           }
         >
           <History className="h-4 w-4 shrink-0" />
-          Audit Trail
+          <span className="truncate">Audit Trail</span>
         </NavLink>
       )}
       {hasPermission("auth.role.manage") && (
@@ -96,7 +98,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           }
         >
           <ShieldCheck className="h-4 w-4 shrink-0" />
-          Hak Akses
+          <span className="truncate">Hak Akses</span>
         </NavLink>
       )}
       <div className="p-4 border-t border-border">
@@ -115,15 +117,58 @@ export default function Sidebar() {
 }
 
 export function MobileSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  if (!open) return null;
+  const [visible, setVisible] = useState(open);
+  // `shown` baru di-set setelah browser sempat mengecat keadaan awal
+  // (tergeser penuh), supaya transisinya benar-benar terpicu.
+  const [shown, setShown] = useState(open);
+
+  useEffect(() => {
+    if (open) {
+      setVisible(true);
+      let inner = 0;
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setShown(true));
+      });
+      return () => {
+        cancelAnimationFrame(outer);
+        cancelAnimationFrame(inner);
+      };
+    }
+
+    setShown(false);
+    const timer = setTimeout(() => setVisible(false), 300);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [visible, onClose]);
+
+  if (!visible) return null;
+
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
-      <aside className="relative flex flex-col h-full w-64 max-w-[80vw] border-r border-border bg-background">
+      <div
+        className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ease-out ${
+          shown ? "opacity-100" : "opacity-0"
+        }`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={`relative flex flex-col h-full w-64 max-w-[80vw] border-r border-border bg-background shadow-xl transition-transform duration-300 ease-out will-change-transform ${
+          shown ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <button
           onClick={onClose}
           aria-label="Tutup menu"
-          className="absolute right-2 top-2 p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+          className="absolute right-2 top-2 p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="h-5 w-5" />
         </button>

@@ -29,7 +29,12 @@ export function ensureEcho(token: string | null) {
         forceTLS: false,
         enabledTransports: ['ws', 'wss'],
         authEndpoint: '/api/broadcasting/auth',
-        bearerToken: token,
+        auth: {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+            },
+        },
     });
     return echo;
 }

@@ -4,13 +4,15 @@ import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { z } from 'zod';
 
 const fetchHolidays = async () => (await api.get('/holidays')).data.data;
 const createHoliday = async (data: any) => (await api.post('/holidays', data)).data.data;
@@ -26,8 +28,34 @@ const deleteSchedule = async (id: number) => { await api.delete(`/work-schedules
 
 const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const workdays = [2, 3, 4, 5, 6];
+const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const weekHead = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
+const viewHolidaySchema = z.object({ id: z.number(), name: z.string(), date: z.string() });
+const viewLeaveSchema = z.object({
+    id: z.number(),
+    start_date: z.string(),
+    end_date: z.string(),
+    employee: z.object({ nama_lengkap: z.string() }).nullish(),
+});
+const viewScheduleSchema = z.object({
+    id: z.number(),
+    day_of_week: z.number(),
+    start_time: z.string().nullish(),
+    end_time: z.string().nullish(),
+});
+const calendarViewSchema = z.object({
+    holidays: z.array(viewHolidaySchema).optional().default([]),
+    leaves: z.array(viewLeaveSchema).optional().default([]),
+    schedules: z.array(viewScheduleSchema).optional().default([]),
+});
+type CalendarView = z.infer<typeof calendarViewSchema>;
+interface LeaveSpan { id: number; label: string; start: string; end: string }
+interface ScheduleInfo { id: number; day: string; time: string }
 
 export default function CalendarPage() {
+    const [holidayDeleteId, setHolidayDeleteId] = useState<number | null>(null);
+    const [wsDeleteId, setWsDeleteId] = useState<number | null>(null);
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState<any>(null);
     const [date, setDate] = useState('');
@@ -42,17 +70,27 @@ export default function CalendarPage() {
     const [editingWsId, setEditingWsId] = useState<number | null>(null);
     const [editStart, setEditStart] = useState('');
     const [editEnd, setEditEnd] = useState('');
-    const [bulkUnitId, setBulkUnitId] = useState('');
 
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
-    const toISODate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const [viewFrom, setViewFrom] = useState(toISODate(monthStart));
-    const [viewTo, setViewTo] = useState(toISODate(monthEnd));
-    const [viewUnitId, setViewUnitId] = useState('');
-    const rangeDays = viewFrom && viewTo ? Math.round((new Date(viewTo).getTime() - new Date(viewFrom).getTime()) / 86400000) + 1 : 0;
-    const rangeValid = !!viewFrom && !!viewTo && viewTo >= viewFrom && rangeDays <= 366;
+    const today = new Date();
+    const [viewYear, setViewYear] = useState(today.getFullYear());
+    const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+    const goMonth = (delta: number) => {
+        const d = new Date(viewYear, viewMonth + delta, 1);
+        setViewYear(d.getFullYear());
+        setViewMonth(d.getMonth());
+    };
+    const goToday = () => {
+        const t = new Date();
+        setViewYear(t.getFullYear());
+        setViewMonth(t.getMonth());
+    };
+
+    const monthPad = String(viewMonth + 1).padStart(2, '0');
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const viewFrom = `${viewYear}-${monthPad}-01`;
+    const viewTo = `${viewYear}-${monthPad}-${String(daysInMonth).padStart(2, '0')}`;
+    const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     const queryClient = useQueryClient();
     const { hasPermission } = useAuthStore();
@@ -60,20 +98,60 @@ export default function CalendarPage() {
 
     const { data: holidays, isLoading, error } = useQuery({ queryKey: ['holidays'], queryFn: fetchHolidays });
     const { data: schedules } = useQuery({ queryKey: ['work-schedules'], queryFn: fetchSchedules });
-    const { data: units } = useQuery({
-        queryKey: ['organizational-units'],
-        queryFn: async () => (await api.get('/organizational-units')).data.data,
+
+    const fetchCalendarView = async () => (await api.get('/calendar-view', { params: { from: viewFrom, to: viewTo } })).data.data;
+    const { data: calendarView, isLoading: isViewLoading, error: viewError } = useQuery({
+        queryKey: ['calendar-view', viewFrom, viewTo],
+        queryFn: fetchCalendarView,
     });
 
-    const fetchCalendarView = async () => (await api.get('/calendar-view', { params: { from: viewFrom, to: viewTo, unit_id: viewUnitId || undefined } })).data.data;
-    const { data: calendarView, isLoading: isViewLoading, error: viewError } = useQuery({
-        queryKey: ['calendar-view', viewFrom, viewTo, viewUnitId],
-        queryFn: fetchCalendarView,
-        enabled: rangeValid,
-    });
-    const viewHolidays: any[] = calendarView?.holidays ?? [];
-    const viewLeaves: any[] = calendarView?.leaves ?? [];
-    const viewSchedules: any[] = calendarView?.schedules ?? [];
+    const parsedView = calendarViewSchema.safeParse(calendarView);
+    const view: CalendarView = parsedView.success ? parsedView.data : { holidays: [], leaves: [], schedules: [] };
+    const viewHolidays = view.holidays;
+
+    const viewLeaves: LeaveSpan[] = [];
+    for (const item of view.leaves) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(item.start_date) || !/^\d{4}-\d{2}-\d{2}$/.test(item.end_date) || item.end_date < item.start_date) continue;
+        const label = item.employee?.nama_lengkap && item.employee.nama_lengkap.length > 0
+            ? item.employee.nama_lengkap
+            : `Pegawai #${item.id}`;
+        viewLeaves.push({ id: item.id, label, start: item.start_date, end: item.end_date });
+    }
+
+    const viewSchedules: ScheduleInfo[] = [];
+    for (const item of view.schedules) {
+        viewSchedules.push({
+            id: item.id,
+            day: days[item.day_of_week - 1] ?? `Hari ${item.day_of_week}`,
+            time: `${item.start_time?.slice(0, 5) ?? ''}-${item.end_time?.slice(0, 5) ?? ''}`,
+        });
+    }
+
+    const holidayMap = new Map<string, typeof viewHolidays>();
+    for (const h of viewHolidays) {
+        const list = holidayMap.get(h.date) ?? [];
+        list.push(h);
+        holidayMap.set(h.date, list);
+    }
+
+    const leaveMap = new Map<string, string[]>();
+    for (const l of viewLeaves) {
+        let cur = l.start;
+        while (cur <= l.end) {
+            const list = leaveMap.get(cur) ?? [];
+            list.push(l.label);
+            leaveMap.set(cur, list);
+            const parts = cur.split('-').map(Number);
+            const dt = new Date(parts[0] ?? 0, (parts[1] ?? 1) - 1, (parts[2] ?? 1) + 1);
+            cur = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        }
+    }
+
+    const firstOffset = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+    const monthCells: (string | null)[] = [
+        ...Array<string | null>(firstOffset).fill(null),
+        ...Array.from({ length: daysInMonth }, (_, i) => `${viewYear}-${monthPad}-${String(i + 1).padStart(2, '0')}`),
+    ];
 
     const createMutation = useMutation({
         mutationFn: createHoliday,
@@ -147,7 +225,7 @@ export default function CalendarPage() {
             toast({ title: 'Gagal', description: 'Pilih minimal 1 hari.', variant: 'destructive' });
             return;
         }
-        bulkMutation.mutate({ days: selectedDays, start_time: wsStart, end_time: wsEnd, organizational_unit_id: bulkUnitId ? Number(bulkUnitId) : null });
+        bulkMutation.mutate({ days: selectedDays, start_time: wsStart, end_time: wsEnd, organizational_unit_id: null });
     };
 
     const startInlineEdit = (s: any) => {
@@ -170,23 +248,11 @@ export default function CalendarPage() {
                     {isHrd && (
                     <Dialog open={wsOpen} onOpenChange={setWsOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline">Jam Kerja</Button>
+                            <Button variant="outline">Jam Kerja Kantor</Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                            <DialogHeader><DialogTitle>Jam Kerja Divisi</DialogTitle></DialogHeader>
+                            <DialogHeader><DialogTitle>Jam Kerja Kantor</DialogTitle></DialogHeader>
                             <form onSubmit={submitBulk} className="space-y-4 border-b pb-4">
-                                <div className="space-y-2">
-                                    <Label>Unit / Divisi (kosongkan = global)</Label>
-                                    <Select value={bulkUnitId || 'global'} onValueChange={(v) => setBulkUnitId(v === 'global' ? '' : v)}>
-                                        <SelectTrigger><SelectValue placeholder="Global (semua divisi)" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="global">Global (semua divisi)</SelectItem>
-                                            {units?.map((u: any) => (
-                                                <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
                                 <div className="space-y-2">
                                     <Label>Hari kerja (bisa pilih sekaligus)</Label>
                                     <div className="flex flex-wrap gap-4">
@@ -259,7 +325,7 @@ export default function CalendarPage() {
                                                             <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(s.id)}>
                                                                 {s.is_active ? 'Nonaktifkan' : 'Aktifkan'}
                                                             </Button>
-                                                            <Button variant="destructive" size="sm" onClick={() => { if (confirm('Hapus jam kerja ini?')) wsDeleteMutation.mutate(s.id); }}>Hapus</Button>
+                                                            <Button variant="destructive" size="sm" onClick={() => setWsDeleteId(s.id)}>Hapus</Button>
                                                         </>
                                                     )}
                                                 </TableCell>
@@ -342,7 +408,7 @@ export default function CalendarPage() {
                                             <div className="flex flex-wrap justify-end gap-2">
                                             <Button variant="outline" size="sm" onClick={() => openEdit(h)}>Edit</Button>
                                             <Button variant="outline" size="sm" onClick={() => toggleHolidayMutation.mutate(h.id)}>{h.is_active ? 'Nonaktifkan' : 'Aktifkan'}</Button>
-                                            <Button variant="destructive" size="sm" onClick={() => { if (confirm('Hapus hari libur ini?')) deleteMutation.mutate(h.id); }}>Hapus</Button>
+                                            <Button variant="destructive" size="sm" onClick={() => setHolidayDeleteId(h.id)}>Hapus</Button>
                                             </div>
                                         </TableCell>
                                         )}
@@ -354,75 +420,113 @@ export default function CalendarPage() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Gambaran Kalender</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div className="space-y-2">
-                            <Label>Tanggal Mulai</Label>
-                            <Input type="date" value={viewFrom} onChange={(e) => setViewFrom(e.target.value)} />
+            <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-lg font-semibold">Gambaran Kalender</h2>
+                        <p className="text-sm text-muted-foreground">Merah berarti kantor tutup, biru berarti ada yang cuti. Pindah bulan untuk melihat periode lain.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => goMonth(-1)} aria-label="Bulan sebelumnya">
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <p className="min-w-32 text-center text-sm font-semibold">{monthNames[viewMonth]} {viewYear}</p>
+                        <Button variant="outline" size="sm" onClick={() => goMonth(1)} aria-label="Bulan berikutnya">
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={goToday}>Hari ini</Button>
+                    </div>
+                </div>
+
+                {isViewLoading ? (
+                    <p className="text-sm text-muted-foreground">Memuat gambaran kalender...</p>
+                ) : viewError ? (
+                    <p className="text-sm text-destructive">Gagal memuat data.</p>
+                ) : (
+                    <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                            {viewHolidays.length} hari kantor tutup, {viewLeaves.length} pengajuan cuti pada {monthNames[viewMonth]} {viewYear}.
+                        </p>
+                        <div className="overflow-hidden rounded-lg border">
+                            <div className="grid grid-cols-7 bg-muted/50">
+                                {weekHead.map((w) => (
+                                    <p key={w} className="px-1 py-2 text-center text-xs font-semibold text-muted-foreground">{w}</p>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7">
+                                {monthCells.map((iso, i) => {
+                                    if (iso === null) return <div key={`e-${i}`} className="min-h-14 border-t bg-muted/20 sm:min-h-20" />;
+                                    const dayHolidays = holidayMap.get(iso) ?? [];
+                                    const dayLeaves = leaveMap.get(iso) ?? [];
+                                    return (
+                                        <div key={iso} className="min-h-14 space-y-1 border-t p-1 sm:min-h-20 sm:p-1.5">
+                                            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${iso === todayISO ? 'bg-primary font-bold text-primary-foreground' : 'text-muted-foreground'}`}>{Number(iso.slice(8, 10))}</span>
+                                            {dayHolidays.map((h) => (
+                                                <p key={`h-${h.id}`} title={h.name} className="hidden truncate rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-800 sm:block">{h.name}</p>
+                                            ))}
+                                            {dayLeaves.slice(0, 2).map((label, j) => (
+                                                <p key={`l-${j}`} title={label} className="hidden truncate rounded bg-blue-100 px-1.5 py-0.5 text-[11px] font-medium text-blue-800 sm:block">{label}</p>
+                                            ))}
+                                            {dayLeaves.length > 2 && (
+                                                <p className="hidden text-[11px] text-blue-700 sm:block">+{dayLeaves.length - 2} lainnya</p>
+                                            )}
+                                            {(dayHolidays.length > 0 || dayLeaves.length > 0) && (
+                                                <div className="flex items-center justify-center gap-1 sm:hidden">
+                                                    {dayHolidays.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}
+                                                    {dayLeaves.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Tanggal Selesai</Label>
-                            <Input type="date" value={viewTo} onChange={(e) => setViewTo(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Unit / Divisi</Label>
-                            <Select value={viewUnitId || 'all'} onValueChange={(v) => setViewUnitId(v === 'all' ? '' : v)}>
-                                <SelectTrigger><SelectValue placeholder="Semua divisi" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Semua divisi</SelectItem>
-                                    {units?.map((u: any) => (
-                                        <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Kantor tutup</span>
+                            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Ada yang cuti</span>
+                            <span>Jam kerja: {viewSchedules.length === 0 ? 'belum diatur' : viewSchedules.map((s) => `${s.day} ${s.time}`).join(', ')}</span>
                         </div>
                     </div>
-                    {!rangeValid ? (
-                        <p className="text-sm text-destructive">Rentang tanggal tidak valid (tanggal selesai harus setelah tanggal mulai, maksimal 366 hari).</p>
-                    ) : isViewLoading ? (
-                        <p className="text-sm text-muted-foreground">Memuat gambaran kalender...</p>
-                    ) : viewError ? (
-                        <p className="text-sm text-destructive">Gagal memuat data.</p>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                            <div className="space-y-2">
-                                <h3 className="font-semibold">Libur ({viewHolidays.length})</h3>
-                                {viewHolidays.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">Tidak ada libur pada rentang ini.</p>
-                                ) : (
-                                    viewHolidays.map((h: any) => (
-                                        <p key={h.id} className="text-sm">{h.date} — {h.name}</p>
-                                    ))
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className="font-semibold">Cuti ({viewLeaves.length})</h3>
-                                {viewLeaves.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">Tidak ada cuti pada rentang ini.</p>
-                                ) : (
-                                    viewLeaves.map((l: any) => (
-                                        <p key={l.id} className="text-sm">{l.employee?.nama_lengkap || `Pegawai #${l.employee_id}`} — {l.start_date} s/d {l.end_date} — {l.status}</p>
-                                    ))
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className="font-semibold">Jadwal ({viewSchedules.length})</h3>
-                                {viewSchedules.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">Tidak ada jadwal aktif untuk filter ini.</p>
-                                ) : (
-                                    viewSchedules.map((s: any) => (
-                                        <p key={s.id} className="text-sm">{days[s.day_of_week - 1]} {s.start_time?.slice(0, 5)} - {s.end_time?.slice(0, 5)}{s.organizational_unit?.name ? ` — ${s.organizational_unit.name}` : ''}</p>
-                                    ))
-                                )}
-                            </div>
+                )}
+            </div>
+
+            <Dialog open={holidayDeleteId !== null} onOpenChange={(v) => { if (!v) setHolidayDeleteId(null); }}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Hapus Hari Libur</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Yakin ingin menghapus hari libur ini?</p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="destructive"
+                                onClick={() => { if (holidayDeleteId) deleteMutation.mutate(holidayDeleteId); setHolidayDeleteId(null); }}
+                                disabled={deleteMutation.isPending}
+                            >
+                                {deleteMutation.isPending ? 'Menghapus...' : 'Ya'}
+                            </Button>
+                            <Button variant="outline" onClick={() => setHolidayDeleteId(null)}>Tidak</Button>
                         </div>
-                    )}
-                </CardContent>
-            </Card>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={wsDeleteId !== null} onOpenChange={(v) => { if (!v) setWsDeleteId(null); }}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Hapus Jam Kerja</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Yakin ingin menghapus jam kerja ini?</p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="destructive"
+                                onClick={() => { if (wsDeleteId) wsDeleteMutation.mutate(wsDeleteId); setWsDeleteId(null); }}
+                                disabled={wsDeleteMutation.isPending}
+                            >
+                                {wsDeleteMutation.isPending ? 'Menghapus...' : 'Ya'}
+                            </Button>
+                            <Button variant="outline" onClick={() => setWsDeleteId(null)}>Tidak</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

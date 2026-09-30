@@ -52,7 +52,8 @@ class StoreEmployeeRequest extends FormRequest
         return [
             'nik.required' => 'NIK wajib diisi.',
             'nik.size' => 'NIK harus 16 digit.',
-            'nik.unique' => 'NIK sudah terdaftar.',
+            'nik.regex' => 'NIK harus 16 digit numerik (hanya angka).',
+            'nik.unique' => 'NIK sudah terdaftar, gunakan NIK lain.',
             'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
             'tanggal_masuk_kerja.required' => 'Tanggal masuk wajib diisi.',
             'password.required' => 'Kata sandi wajib diisi.',

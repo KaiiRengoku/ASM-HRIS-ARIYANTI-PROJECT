@@ -19,10 +19,15 @@ use App\Http\Controllers\ProfileFunctionalController;
 use App\Http\Controllers\ProfileTeachingAssignmentController;
 use App\Http\Controllers\ProfilePositionHistoryController;
 use App\Http\Controllers\RolePermissionController;
-use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
-Broadcast::routes(['middleware' => ['auth:sanctum']]);
+
+// Otorisasi channel websocket. Route bawaan (/api/broadcasting/auth dari
+// withBroadcasting) tidak memakai auth:sanctum sama sekali, sehingga klien
+// yang mengirim Bearer token pun tetap ditolak 500. Kita daftarkan ulang
+// di dalam grup auth:sanctum; route pertama yang cocok akan dipakai.
+Route::post('/broadcasting/auth', [\Illuminate\Broadcasting\BroadcastController::class, 'authenticate'])
+    ->middleware('auth:sanctum');
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -82,8 +87,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:leave.approve')->group(function () {
         Route::post('leave-attachments/{attachment}/verify', [LeaveController::class, 'verifyAttachment']);
     });
-    Route::put('leaves/{leave}', [LeaveController::class, 'update'])
-        ->middleware('permission:leave.update');
     Route::delete('leaves/{leave}', [LeaveController::class, 'destroy'])
         ->middleware('permission:leave.delete');
 
@@ -104,6 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('documents', [DocumentController::class, 'store'])->middleware('permission:document.upload');
     Route::get('documents/{document}', [DocumentController::class, 'show'])->middleware('permission:document.view');
     Route::get('documents/{document}/download', [DocumentController::class, 'download'])->middleware('permission:document.view');
+    Route::get('documents/{document}/preview', [DocumentController::class, 'preview'])->middleware('permission:document.view');
     Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->middleware('permission:document.delete');
 
     Route::get('leaves', [LeaveController::class, 'index'])->middleware('permission:leave.view');
