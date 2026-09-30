@@ -42,14 +42,14 @@ class EmployeeFormalFieldsTest extends TestCase
 
     public function test_hrd_creates_employee_with_formal_identity_fields(): void
     {
-        \App\Models\Role::firstOrCreate(['code' => 'PEG'], ['name' => 'Dosen & Pegawai']);
+        \App\Models\Role::firstOrCreate(['code' => 'PEGAWAI'], ['name' => 'Dosen & Pegawai']);
         $response = $this->actingAs($this->hrdUser)->postJson('/api/employees', [
             'nik' => '1234567890123456',
             'nama_lengkap' => 'Dosen Contoh',
             'email' => 'dosen@example.com',
             'tanggal_masuk_kerja' => '2020-01-15',
             'password' => 'password123',
-            'role' => 'PEG',
+            'role' => 'PEGAWAI',
             'gelar_depan' => 'Dr.',
             'gelar_belakang' => 'M.Kom.',
             'tempat_lahir' => 'Jakarta',

@@ -3,7 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { LayoutDashboard, Users, FileText, CalendarDays, ClipboardCheck, Calendar, BarChart3, History, ShieldCheck, X } from "lucide-react";
 import logo from "@/assets/logo_asm.png";
 
-const ALL = ["PEG", "HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG"];
+const ALL = ["DOSEN", "PEGAWAI", "HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG"];
 
 const menuItems = [
   { label: "Dashboard", href: null, icon: LayoutDashboard, roles: ALL, permission: null },
@@ -18,7 +18,7 @@ const menuItems = [
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { hasRole, hasPermission } = useAuthStore();
 
-  const userRoles = hasRole("HRD") ? ["HRD"] : hasRole("DIREKTUR") ? ["DIREKTUR"] : hasRole("PD_I") ? ["PD_I"] : hasRole("PD_II") ? ["PD_II"] : hasRole("PD_III") ? ["PD_III"] : hasRole("KABAG") ? ["KABAG"] : ["PEG"];
+  const userRoles = hasRole("HRD") ? ["HRD"] : hasRole("DIREKTUR") ? ["DIREKTUR"] : hasRole("PD_I") ? ["PD_I"] : hasRole("PD_II") ? ["PD_II"] : hasRole("PD_III") ? ["PD_III"] : hasRole("KABAG") ? ["KABAG"] : hasRole("DOSEN") ? ["DOSEN"] : ["PEGAWAI"];
 
   const dashboardHref = (() => {
     if (hasRole("HRD")) return "/dashboard/hrd";

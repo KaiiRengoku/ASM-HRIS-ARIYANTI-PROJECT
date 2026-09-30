@@ -38,7 +38,7 @@ class EmployeeAccessScopeTest extends TestCase
     public function test_kabag_dan_peg_ditolak_di_list_pegawai(): void
     {
         $kabag = $this->buatUser('1234567890123456', 'KABAG');
-        $peg = $this->buatUser('1234567890123457', 'PEG');
+        $peg = $this->buatUser('1234567890123457', 'PEGAWAI');
 
         $this->actingAs($kabag)->getJson('/api/employees')->assertForbidden();
         $this->actingAs($peg)->getJson('/api/employees')->assertForbidden();
@@ -47,7 +47,7 @@ class EmployeeAccessScopeTest extends TestCase
     public function test_kabag_dan_peg_ditolak_di_detail_pegawai(): void
     {
         $kabag = $this->buatUser('1234567890123456', 'KABAG');
-        $peg = $this->buatUser('1234567890123457', 'PEG');
+        $peg = $this->buatUser('1234567890123457', 'PEGAWAI');
 
         $this->actingAs($kabag)->getJson("/api/employees/{$kabag->employee_id}")->assertForbidden();
         $this->actingAs($peg)->getJson("/api/employees/{$peg->employee_id}")->assertForbidden();

@@ -80,7 +80,7 @@ class LeaveWorkingDaysTest extends TestCase
 
     public function test_post_rentang_weekend_ditolak_400(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
         $employee = Employee::find($peg->employee_id);
         $type = $this->buatAnnualDenganSaldo($employee);
         [$sat, $sun] = $this->weekendFuture();
@@ -94,7 +94,7 @@ class LeaveWorkingDaysTest extends TestCase
 
     public function test_post_jumat_senin_total_dua_hari_kerja(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
         $employee = Employee::find($peg->employee_id);
         $type = $this->buatAnnualDenganSaldo($employee);
         [$fri, $mon] = $this->fridayMondayFuture();
@@ -109,7 +109,7 @@ class LeaveWorkingDaysTest extends TestCase
     public function test_put_hrd_ke_rentang_weekend_ditolak_400(): void
     {
         $hrd = $this->buatUser('1234567890123456', 'HRD');
-        $peg = $this->buatUser('1234567890123457', 'PEG');
+        $peg = $this->buatUser('1234567890123457', 'PEGAWAI');
         $employee = Employee::find($peg->employee_id);
         $type = $this->buatAnnualDenganSaldo($employee);
         [$fri, $mon] = $this->fridayMondayFuture();

@@ -53,7 +53,7 @@ export default function EmployeeFormPage() {
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EmployeeForm>({
     resolver: zodResolver(employeeSchema),
-    defaultValues: { role: 'PEG', position_id: '' },
+    defaultValues: { role: 'PEGAWAI', position_id: '' },
   });
 
   const { data: roles } = useQuery({
@@ -87,7 +87,7 @@ export default function EmployeeFormPage() {
         nidn: existing.nidn || '',
         alamat: existing.alamat || '',
         password: '',
-        role: (existing as any).account?.role || 'PEG',
+        role: (existing as any).account?.role || 'PEGAWAI',
         position_id: existing.position_id ? String(existing.position_id) : '',
       });
     }
@@ -99,7 +99,7 @@ export default function EmployeeFormPage() {
     return {
       ...rest,
       password,
-      role: role || 'PEG',
+      role: role || 'PEGAWAI',
       ...(position_id ? { position_id: Number(position_id) } : {}),
     };
   };
@@ -244,7 +244,7 @@ export default function EmployeeFormPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Role <span className="text-destructive">*</span></Label>
-                    <Select onValueChange={(v) => setValue('role', v)} value={watch('role') || 'PEG'}>
+                    <Select onValueChange={(v) => setValue('role', v)} value={watch('role') || 'PEGAWAI'}>
                       <SelectTrigger><SelectValue placeholder="Pilih role" /></SelectTrigger>
                       <SelectContent>
                         {roles?.map((r: any) => (

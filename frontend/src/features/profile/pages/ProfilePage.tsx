@@ -162,7 +162,7 @@ export default function ProfilePage() {
 
     const employee = profile?.employee ?? null;
     const isDosen = profile?.is_dosen ?? false;
-    const isPegawai = profile?.is_pegawai ?? (isDosen || (profile?.roles ?? []).some((r) => (r.code ?? r.name) === 'PEG'));
+    const isPegawai = profile?.is_pegawai ?? (isDosen || (profile?.roles ?? []).some((r) => ['PEGAWAI', 'DOSEN'].includes(r.code ?? r.name)));
 
     const { data: assignments } = useQuery({
         queryKey: ['profile-teaching-assignments'],

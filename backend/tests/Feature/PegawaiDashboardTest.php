@@ -47,7 +47,7 @@ class PegawaiDashboardTest extends TestCase
 
     public function test_pegawai_melihat_notifikasi_dan_total_cuti(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
 
         Notification::create([
             'id' => (string) Str::uuid(),
@@ -99,7 +99,7 @@ class PegawaiDashboardTest extends TestCase
 
     public function test_dosen_melihat_beban_mengajar_dan_penelitian(): void
     {
-        $dosen = $this->buatUser('1234567890123456', 'PEG', 'Dosen');
+        $dosen = $this->buatUser('1234567890123456', 'PEGAWAI', 'Dosen');
 
         TeachingAssignment::create([
             'employee_id' => $dosen->employee_id,
@@ -136,7 +136,7 @@ class PegawaiDashboardTest extends TestCase
             'email' => 'tanpa@example.com',
             'password' => 'password',
         ]);
-        $role = Role::firstOrCreate(['code' => 'PEG'], ['name' => 'PEG']);
+        $role = Role::firstOrCreate(['code' => 'PEGAWAI'], ['name' => 'PEGAWAI']);
         $user->roles()->attach($role->id);
 
         $this->actingAs($user)->getJson('/api/dashboard/stats')->assertNotFound();

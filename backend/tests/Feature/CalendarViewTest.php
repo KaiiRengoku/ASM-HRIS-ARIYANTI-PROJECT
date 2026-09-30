@@ -97,7 +97,7 @@ class CalendarViewTest extends TestCase
 
     public function test_pegawai_hanya_melihat_cuti_sendiri(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
         $lain = $this->buatUser('1234567890123457');
         $type = LeaveType::create([
             'name' => 'Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => false,

@@ -208,20 +208,8 @@ class LeaveController extends Controller
         $totalDays = \App\Services\WorkingDayService::count($request->start_date, $request->end_date, $emp?->organizational_unit_id);
         if ($totalDays < 1) return response()->json(['success' => false, 'message' => 'Total hari kerja 0. Rentang hanya berisi akhir pekan/libur.'], 400);
 
-        // Check if leave type deducts balance and if enough balance
-        $leaveType = \App\Models\LeaveType::find($request->leave_type_id);
-        $isSick = $leaveType->code === 'SICK';
-        $hasCertificate = $request->hasFile('attachment');
-        $deducts = $leaveType->is_leave_balance_deducted && (!$isSick || !$hasCertificate);
-        if ($deducts) {
-            $balance = LeaveBalance::where('employee_id', $request->employee_id)
-                ->where('leave_type_id', $request->leave_type_id)
-                ->where('period_year', date('Y'))
-                ->first();
-            if (!$balance || $balance->remaining_days < $totalDays) {
-                return response()->json(['success' => false, 'message' => 'Saldo cuti tidak mencukupi.'], 400);
-            }
-        }
+        // Saldo cuti tidak lagi memblokir pengajuan. Perhitungan/pemotongan
+        // diserahkan ke HRD secara manual (lihat leave-balances/adjust).
 
         $leave = LeaveRequest::create([
             'employee_id' => $request->employee_id,

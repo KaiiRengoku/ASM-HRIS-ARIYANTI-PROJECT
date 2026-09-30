@@ -149,7 +149,7 @@ class LeaveAccrueTest extends TestCase
 
     public function test_non_hrd_ditolak(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
         \App\Models\LeaveType::create(['name' => 'Tahunan', 'code' => 'ANNUAL']);
 
         $this->actingAs($peg)->postJson('/api/leave-balances/accrue', [

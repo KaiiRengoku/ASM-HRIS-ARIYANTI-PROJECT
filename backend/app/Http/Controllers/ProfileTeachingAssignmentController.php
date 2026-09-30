@@ -13,11 +13,16 @@ class ProfileTeachingAssignmentController extends Controller
         return (bool) $employee?->is_dosen;
     }
 
+    private function canManageTeaching($user): bool
+    {
+        return $this->isDosen($user->employee)
+            || collect($user->roles)->contains(fn ($r) => in_array(($r['code'] ?? $r), ['PEGAWAI', 'DOSEN'], true));
+    }
+
     public function index(Request $request)
     {
         $user = $request->user()->load(['employee.position', 'roles']);
-        $isPegawai = $this->isDosen($user->employee)
-            || collect($user->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
+        $isPegawai = $this->canManageTeaching($user);
         $employeeId = $request->query('employee_id');
 
         if ($employeeId && (int) $employeeId !== (int) $user->employee->id && !$user->hasRole('HRD')) {
@@ -35,8 +40,7 @@ class ProfileTeachingAssignmentController extends Controller
     public function store(Request $request)
     {
         $user = $request->user()->load(['employee.position', 'roles']);
-        $isPegawai = $this->isDosen($user->employee)
-            || collect($user->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
+        $isPegawai = $this->canManageTeaching($user);
         if (!$isPegawai && !$user->hasRole('HRD')) {
             abort(403, 'Mata kuliah hanya untuk Dosen/Pegawai.');
         }
@@ -68,7 +72,7 @@ class ProfileTeachingAssignmentController extends Controller
     {
         $user = $request->user();
         $user->employee?->loadMissing('position');
-        if (!$user->hasRole('HRD') && !$this->isDosen($user->employee) && !$user->hasRole('PEG')) {
+        if (!$user->hasRole('HRD') && !$this->canManageTeaching($user)) {
             abort(403, 'Mata kuliah hanya untuk Dosen/Pegawai.');
         }
         if ((int) $teachingAssignment->employee_id !== (int) $user->employee->id && !$user->hasRole('HRD')) {
@@ -93,7 +97,7 @@ class ProfileTeachingAssignmentController extends Controller
     {
         $user = $request->user();
         $user->employee?->loadMissing('position');
-        if (!$user->hasRole('HRD') && !$this->isDosen($user->employee) && !$user->hasRole('PEG')) {
+        if (!$user->hasRole('HRD') && !$this->canManageTeaching($user)) {
             abort(403, 'Mata kuliah hanya untuk Dosen/Pegawai.');
         }
         if ((int) $teachingAssignment->employee_id !== (int) $user->employee->id && !$user->hasRole('HRD')) {

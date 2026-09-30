@@ -15,7 +15,9 @@ class LeaveBalanceController extends Controller
 {
     public function byEmployee(Request $request, $employeeId)
     {
-        $canViewAll = $request->user()->roles()->whereIn('code', ['HRD', 'KABAG', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'])->exists();
+        // Rekap/lihat sisa cuti pegawai lain hanya untuk HRD dan pimpinan (DIREKTUR/PD).
+        // KABAG menyusul menunggu keputusan tim; saat ini hanya boleh melihat miliknya sendiri.
+        $canViewAll = $request->user()->roles()->whereIn('code', ['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'])->exists();
         if (!$canViewAll && (int) $employeeId !== (int) $request->user()->employee_id) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }

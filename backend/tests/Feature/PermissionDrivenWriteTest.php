@@ -38,7 +38,7 @@ class PermissionDrivenWriteTest extends TestCase
         $this->actingAs($dir)->postJson('/api/employees', [
             'nik' => '1234567890123458', 'nama_lengkap' => 'Baru',
             'email' => 'baru@example.com', 'password' => 'password123',
-            'role' => 'PEG', 'tanggal_masuk_kerja' => '2024-01-01',
+            'role' => 'PEGAWAI', 'tanggal_masuk_kerja' => '2024-01-01',
         ])->assertForbidden();
 
         // HRD grant permission ke role DIREKTUR
@@ -48,7 +48,7 @@ class PermissionDrivenWriteTest extends TestCase
         $this->actingAs($dir)->postJson('/api/employees', [
             'nik' => '1234567890123458', 'nama_lengkap' => 'Baru',
             'email' => 'baru@example.com', 'password' => 'password123',
-            'role' => 'PEG', 'tanggal_masuk_kerja' => '2024-01-01',
+            'role' => 'PEGAWAI', 'tanggal_masuk_kerja' => '2024-01-01',
         ])->assertCreated();
     }
 

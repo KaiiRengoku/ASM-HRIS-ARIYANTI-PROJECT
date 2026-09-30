@@ -38,9 +38,9 @@ class RoleEnforcementTest extends TestCase
 
     public function test_non_hrd_ditolak_di_endpoint_terkunci(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
 
-        $this->actingAs($peg)->putJson("/api/employees/{$peg->employee_id}/account", ['role' => 'PEG'])->assertForbidden();
+        $this->actingAs($peg)->putJson("/api/employees/{$peg->employee_id}/account", ['role' => 'PEGAWAI'])->assertForbidden();
         $this->actingAs($peg)->deleteJson("/api/employees/{$peg->employee_id}/account")->assertForbidden();
         $this->actingAs($peg)->getJson('/api/role-permissions')->assertForbidden();
         $this->actingAs($peg)->getJson('/api/audit-logs')->assertForbidden();
@@ -50,8 +50,8 @@ class RoleEnforcementTest extends TestCase
 
     public function test_non_hrd_hanya_melihat_cuti_milik_sendiri(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
-        $other = $this->buatUser('1234567890123457', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
+        $other = $this->buatUser('1234567890123457', 'PEGAWAI');
 
         $type = \App\Models\LeaveType::create([
             'name' => 'Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => false,
@@ -82,7 +82,7 @@ class RoleEnforcementTest extends TestCase
     public function test_hrd_tambah_pegawai_otomatis_buat_akun(): void
     {
         $hrd = $this->buatUser('1234567890123456', 'HRD');
-        \App\Models\Role::firstOrCreate(['code' => 'PEG'], ['name' => 'Dosen & Pegawai']);
+        \App\Models\Role::firstOrCreate(['code' => 'PEGAWAI'], ['name' => 'Dosen & Pegawai']);
 
         $response = $this->actingAs($hrd)->postJson('/api/employees', [
             'nik' => '1234567890123457',
@@ -90,19 +90,19 @@ class RoleEnforcementTest extends TestCase
             'email' => 'baru@example.com',
             'tanggal_masuk_kerja' => '2024-01-15',
             'password' => 'password123',
-            'role' => 'PEG',
+            'role' => 'PEGAWAI',
         ]);
 
         $response->assertCreated();
         $this->assertDatabaseHas('users', ['nik' => '1234567890123457']);
         $response->assertJsonPath('data.has_account', true);
-        $response->assertJsonPath('data.account.role', 'PEG');
+        $response->assertJsonPath('data.account.role', 'PEGAWAI');
     }
 
     public function test_hrd_hapus_akun_permanen_data_pegawai_utuh(): void
     {
         $hrd = $this->buatUser('1234567890123456', 'HRD');
-        $peg = $this->buatUser('1234567890123457', 'PEG');
+        $peg = $this->buatUser('1234567890123457', 'PEGAWAI');
 
         $this->actingAs($hrd)->deleteJson("/api/employees/{$peg->employee_id}/account")->assertOk();
         $this->assertDatabaseMissing('users', ['nik' => '1234567890123457']);
@@ -111,7 +111,7 @@ class RoleEnforcementTest extends TestCase
 
     public function test_approve_reject_hanya_kabag_dan_hrd(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
         $kabag = $this->buatUser('1234567890123457', 'KABAG');
 
         $type = \App\Models\LeaveType::create([

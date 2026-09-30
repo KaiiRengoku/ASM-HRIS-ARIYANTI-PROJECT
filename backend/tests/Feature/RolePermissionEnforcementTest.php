@@ -39,7 +39,7 @@ class RolePermissionEnforcementTest extends TestCase
 
     public function test_seeder_assigns_peg_permissions_but_not_employee_view(): void
     {
-        $codes = Role::where('code', 'PEG')->first()->permissions()->pluck('code')->all();
+        $codes = Role::where('code', 'PEGAWAI')->first()->permissions()->pluck('code')->all();
 
         $this->assertContains('leave.create', $codes);
         $this->assertNotContains('employee.view', $codes);
@@ -47,10 +47,10 @@ class RolePermissionEnforcementTest extends TestCase
 
     public function test_revoke_leave_view_blocks_peg_from_leaves(): void
     {
-        $pegRole = Role::where('code', 'PEG')->first();
+        $pegRole = Role::where('code', 'PEGAWAI')->first();
         $pegRole->permissions()->detach(Permission::where('code', 'leave.view')->first());
 
-        $peg = $this->buatUser('1111111111111111', 'PEG');
+        $peg = $this->buatUser('1111111111111111', 'PEGAWAI');
 
         $this->actingAs($peg)->getJson('/api/leaves')->assertForbidden();
     }
@@ -73,7 +73,7 @@ class RolePermissionEnforcementTest extends TestCase
         $type = \App\Models\LeaveType::create([
             'name' => 'Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => false,
         ]);
-        $peg = $this->buatUser('3333333333333333', 'PEG');
+        $peg = $this->buatUser('3333333333333333', 'PEGAWAI');
         $kabag = $this->buatUser('3333333333333334', 'KABAG');
         $leave = \App\Models\LeaveRequest::create([
             'employee_id' => $peg->employee_id,
@@ -113,14 +113,14 @@ class RolePermissionEnforcementTest extends TestCase
 
     public function test_unpermissioned_route_stays_accessible(): void
     {
-        $peg = $this->buatUser('5555555555555555', 'PEG');
+        $peg = $this->buatUser('5555555555555555', 'PEGAWAI');
 
         $this->actingAs($peg)->getJson('/api/leave-types')->assertOk();
     }
 
     public function test_non_hrd_cannot_access_audit_logs(): void
     {
-        $peg = $this->buatUser('6666666666666666', 'PEG');
+        $peg = $this->buatUser('6666666666666666', 'PEGAWAI');
 
         $this->actingAs($peg)->getJson('/api/audit-logs')->assertForbidden();
     }

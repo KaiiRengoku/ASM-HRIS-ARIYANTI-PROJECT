@@ -31,7 +31,7 @@ class DirectorDocumentAccessTest extends TestCase
     public function test_direktur_bisa_lihat_dan_unduh_dokumen_pegawai_lain_tapi_tidak_hapus(): void
     {
         $direktur = $this->buatUser('1234567890123456', 'DIREKTUR');
-        $staf = $this->buatUser('1234567890123457', 'PEG');
+        $staf = $this->buatUser('1234567890123457', 'PEGAWAI');
         $doc = EmployeeDocument::create([
             'employee_id' => $staf->employee_id, 'document_type' => 'Ijazah',
             'file_name' => 'ijazah.pdf', 'storage_disk' => 'public',
@@ -47,8 +47,8 @@ class DirectorDocumentAccessTest extends TestCase
 
     public function test_pegawai_masih_dibatasi_ke_dokumen_sendiri(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
-        $lain = $this->buatUser('1234567890123457', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
+        $lain = $this->buatUser('1234567890123457', 'PEGAWAI');
         $doc = EmployeeDocument::create([
             'employee_id' => $lain->employee_id, 'document_type' => 'KTP',
             'file_name' => 'ktp.pdf', 'storage_disk' => 'public',

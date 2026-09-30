@@ -32,7 +32,7 @@ import ChangePasswordPage from "@/features/profile/pages/ChangePasswordPage";
 import HakAksesPage from "@/features/access/pages/HakAksesPage";
 
 const HRD = ["HRD"];
-const ALL_ROLES = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG", "PEG"];
+const ALL_ROLES = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG", "DOSEN", "PEGAWAI"];
 
 const protectedRoutes = [
   { path: "/dashboard/hrd", element: <HRDDashboard />, roles: HRD },
@@ -41,7 +41,7 @@ const protectedRoutes = [
   { path: "/dashboard/pd-2", element: <PD2Dashboard />, roles: ["PD_II"] },
   { path: "/dashboard/pd-3", element: <PD3Dashboard />, roles: ["PD_III"] },
   { path: "/dashboard/kabag", element: <KabagDashboard />, roles: ["KABAG"] },
-  { path: "/dashboard/pegawai", element: <PegawaiDashboard />, roles: ["PEG"] },
+  { path: "/dashboard/pegawai", element: <PegawaiDashboard />, roles: ["DOSEN", "PEGAWAI"] },
   { path: "/pegawai", element: <EmployeeListPage />, roles: ALL_ROLES, permissions: ["employee.view"] },
   { path: "/pegawai/create", element: <EmployeeFormPage />, roles: ALL_ROLES, permissions: ["employee.create"] },
   { path: "/pegawai/:id", element: <EmployeeDetailPage />, roles: ALL_ROLES, permissions: ["employee.view"] },

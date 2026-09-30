@@ -218,7 +218,7 @@ public function exportBiodataPdf(Request $request, $id)
     }
     $employee = Employee::with(['position', 'organizationalUnit', 'educations', 'functional', 'teachingAssignments', 'positionHistories', 'user.roles'])->findOrFail($id);
     $isDosen = (bool) $employee->is_dosen;
-    $isPegawai = $isDosen || collect($employee->user?->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
+    $isPegawai = $isDosen || collect($employee->user?->roles)->contains(fn ($r) => in_array(($r['code'] ?? $r), ['PEGAWAI', 'DOSEN'], true));
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.biodata', compact('employee', 'isDosen', 'isPegawai'));
     $this->audit($request, 'reports/biodata-pdf/' . $id, Employee::class, (int) $id);
     return $pdf->download('biodata_' . $employee->nik . '.pdf');
@@ -231,7 +231,7 @@ public function exportBiodataWord(Request $request, $id)
     }
     $employee = Employee::with(['position', 'organizationalUnit', 'educations', 'functional', 'teachingAssignments', 'positionHistories', 'user.roles'])->findOrFail($id);
     $isDosen = (bool) $employee->is_dosen;
-    $isPegawai = $isDosen || collect($employee->user?->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
+    $isPegawai = $isDosen || collect($employee->user?->roles)->contains(fn ($r) => in_array(($r['code'] ?? $r), ['PEGAWAI', 'DOSEN'], true));
     $html = view('pdf.biodata', compact('employee', 'isDosen', 'isPegawai'))->render();
     $filename = 'biodata_' . $employee->nik . '.doc';
     $this->audit($request, 'reports/biodata-word/' . $id, Employee::class, (int) $id);

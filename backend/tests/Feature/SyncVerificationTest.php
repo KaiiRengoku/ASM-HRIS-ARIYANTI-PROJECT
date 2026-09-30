@@ -39,7 +39,7 @@ class SyncVerificationTest extends TestCase
 
     public function test_item9_route_roles_diguard_permission_employee_view(): void
     {
-        $peg = $this->user('1234567890123401', 'PEG');
+        $peg = $this->user('1234567890123401', 'PEGAWAI');
         $hrd = $this->user('1234567890123402', 'HRD');
 
         $this->actingAs($peg)->getJson('/api/roles')->assertForbidden();
@@ -48,7 +48,7 @@ class SyncVerificationTest extends TestCase
 
     public function test_item2_riwayat_jabatan_crud_sendiri(): void
     {
-        $peg = $this->user('1234567890123403', 'PEG');
+        $peg = $this->user('1234567890123403', 'PEGAWAI');
 
         $this->actingAs($peg)->postJson('/api/profile/position-histories', [
             'jabatan' => 'Kepala Urusan', 'start_date' => '2021-03-01', 'end_date' => '2024-02-28', 'no_sk' => 'SK-1',
@@ -63,7 +63,7 @@ class SyncVerificationTest extends TestCase
         ])->assertStatus(422);
 
         // bukan HRD tidak boleh bikin untuk pegawai lain (yang ada pun ditolak 403)
-        $other = $this->user('1234567890123499', 'PEG');
+        $other = $this->user('1234567890123499', 'PEGAWAI');
         $this->actingAs($peg)->postJson('/api/profile/position-histories', [
             'employee_id' => $other->employee_id, 'jabatan' => 'Y',
         ])->assertForbidden();
@@ -72,7 +72,7 @@ class SyncVerificationTest extends TestCase
     public function test_item2_riwayat_jabatan_muncul_di_resource_dan_profile(): void
     {
         $hrd = $this->user('1234567890123404', 'HRD');
-        $peg = $this->user('1234567890123405', 'PEG');
+        $peg = $this->user('1234567890123405', 'PEGAWAI');
         \App\Models\EmployeePositionHistory::create([
             'employee_id' => $peg->employee_id, 'jabatan' => 'Staf', 'start_date' => '2022-01-01',
         ]);
@@ -86,14 +86,14 @@ class SyncVerificationTest extends TestCase
 
     public function test_item3_command_accrue_menbuat_saldo(): void
     {
-        $peg = $this->user('1234567890123406', 'PEG');
+        $peg = $this->user('1234567890123406', 'PEGAWAI');
         $annual = LeaveType::create(['name' => 'Cuti Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => true]);
 
         Artisan::call('leave:accrue');
 
         $balance = LeaveBalance::where('employee_id', $peg->employee_id)->where('period_year', now()->year)->first();
         $this->assertNotNull($balance);
-        $this->assertEquals(14, (float) $balance->entitled_days); // masa kerja 2020 → tier 5-10 th
+        $this->assertEquals(12, (float) $balance->entitled_days); // jatah seragam 12 hari
 
         Artisan::call('leave:accrue'); // idempotent
         $this->assertEquals(1, LeaveBalance::where('employee_id', $peg->employee_id)->where('period_year', now()->year)->count());
@@ -117,8 +117,8 @@ class SyncVerificationTest extends TestCase
     public function test_item7_rekap_scope_akademik(): void
     {
         $direktur = $this->user('1234567890123420', 'DIREKTUR');
-        $dosen = $this->user('1234567890123421', 'PEG', ['is_dosen' => true]);
-        $staf = $this->user('1234567890123422', 'PEG');
+        $dosen = $this->user('1234567890123421', 'PEGAWAI', ['is_dosen' => true]);
+        $staf = $this->user('1234567890123422', 'PEGAWAI');
 
         $type = LeaveType::create(['name' => 'Cuti Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => false]);
         LeaveRequest::create([
@@ -142,7 +142,7 @@ class SyncVerificationTest extends TestCase
     {
         Storage::fake('public');
         $hrd = $this->user('1234567890123430', 'HRD');
-        $peg = $this->user('1234567890123431', 'PEG');
+        $peg = $this->user('1234567890123431', 'PEGAWAI');
         $type = LeaveType::create(['name' => 'Cuti Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => false]);
         $leave = LeaveRequest::create([
             'employee_id' => $peg->employee_id, 'leave_type_id' => $type->id,
@@ -161,7 +161,7 @@ class SyncVerificationTest extends TestCase
     {
         Storage::fake('public');
         $hrd = $this->user('1234567890123440', 'HRD');
-        $peg = $this->user('1234567890123441', 'PEG');
+        $peg = $this->user('1234567890123441', 'PEGAWAI');
         $type = LeaveType::create(['name' => 'Cuti Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => false]);
         $leave = LeaveRequest::create([
             'employee_id' => $peg->employee_id, 'leave_type_id' => $type->id,

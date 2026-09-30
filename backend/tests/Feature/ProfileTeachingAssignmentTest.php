@@ -102,7 +102,7 @@ class ProfileTeachingAssignmentTest extends TestCase
     public function test_staf_role_pegawai_dapat_membuat_teaching_assignment(): void
     {
         $staf = $this->buatUser('Staf', '1234567890123459');
-        $role = Role::firstOrCreate(['code' => 'PEG'], ['name' => 'Pegawai']);
+        $role = Role::firstOrCreate(['code' => 'PEGAWAI'], ['name' => 'Pegawai']);
         $staf->roles()->attach($role->id);
 
         $response = $this->actingAs($staf)->postJson('/api/profile/teaching-assignments', [

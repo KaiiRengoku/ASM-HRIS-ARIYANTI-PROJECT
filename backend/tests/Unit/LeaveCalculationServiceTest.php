@@ -15,28 +15,10 @@ class LeaveCalculationServiceTest extends TestCase
         return $e;
     }
 
-    public function test_new_employee_under_one_year_gets_zero(): void
+    public function test_jatah_seragam_dua_belas_untuk_semua(): void
     {
-        $this->assertSame(0.0, LeaveCalculationService::entitledDays($this->emp('2026-03-01'), 2026));
-    }
-
-    public function test_first_year_accrual_jan_jun_gets_six(): void
-    {
-        $this->assertSame(6.0, LeaveCalculationService::entitledDays($this->emp('2025-04-01'), 2026));
-    }
-
-    public function test_first_year_accrual_jul_dec_defers_to_january(): void
-    {
-        $this->assertSame(0.0, LeaveCalculationService::entitledDays($this->emp('2025-09-01'), 2026));
-        $this->assertSame(6.0, LeaveCalculationService::entitledDays($this->emp('2025-09-01'), 2027));
-    }
-
-    public function test_tier_by_service_years(): void
-    {
-        $this->assertSame(12.0, LeaveCalculationService::entitledDays($this->emp('2022-01-01'), 2026));
-        $this->assertSame(14.0, LeaveCalculationService::entitledDays($this->emp('2018-01-01'), 2026));
-        $this->assertSame(18.0, LeaveCalculationService::entitledDays($this->emp('2015-01-01'), 2026));
-        $this->assertSame(21.0, LeaveCalculationService::entitledDays($this->emp('2008-01-01'), 2026));
-        $this->assertSame(26.0, LeaveCalculationService::entitledDays($this->emp('2000-01-01'), 2026));
+        $this->assertSame(12.0, LeaveCalculationService::entitledDays($this->emp('2026-03-01'), 2026));
+        $this->assertSame(12.0, LeaveCalculationService::entitledDays($this->emp('2020-01-15'), 2026));
+        $this->assertSame(12.0, LeaveCalculationService::entitledDays($this->emp('2000-01-01'), 2026));
     }
 }

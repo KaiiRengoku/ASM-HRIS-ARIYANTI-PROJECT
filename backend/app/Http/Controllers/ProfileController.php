@@ -18,7 +18,7 @@ class ProfileController extends Controller
         $user = $request->user()->load(['employee.position', 'employee.positionHistories', 'roles']);
         $data = $user->toArray();
         $data['is_dosen'] = $this->isDosen($user->employee);
-        $data['is_pegawai'] = $data['is_dosen'] || collect($user->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
+        $data['is_pegawai'] = $data['is_dosen'] || collect($user->roles)->contains(fn ($r) => in_array(($r['code'] ?? $r), ['PEGAWAI', 'DOSEN'], true));
 
         return response()->json(['success' => true, 'data' => $data]);
     }
@@ -51,7 +51,7 @@ class ProfileController extends Controller
         $user->load(['employee.position', 'roles']);
         $data = $user->toArray();
         $data['is_dosen'] = $this->isDosen($user->employee);
-        $data['is_pegawai'] = $data['is_dosen'] || collect($user->roles)->contains(fn ($r) => ($r['code'] ?? $r) === 'PEG');
+        $data['is_pegawai'] = $data['is_dosen'] || collect($user->roles)->contains(fn ($r) => in_array(($r['code'] ?? $r), ['PEGAWAI', 'DOSEN'], true));
 
         return response()->json(['success' => true, 'data' => $data]);
     }

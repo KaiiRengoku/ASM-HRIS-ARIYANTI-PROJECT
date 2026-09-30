@@ -14,8 +14,12 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        if (Schema::hasTable('roles') && \App\Models\Role::count() === 0) {
-            $this->seed([RoleSeeder::class, PermissionSeeder::class, RolePermissionSeeder::class]);
+        if (!Schema::hasTable('roles')) {
+            return;
         }
+
+        // Role/permission harus lengkap di setiap test, terlepas dari apakah
+        // tabel roles sudah terisi oleh migrasi data.
+        $this->seed([RoleSeeder::class, PermissionSeeder::class, RolePermissionSeeder::class]);
     }
 }

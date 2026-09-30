@@ -46,7 +46,12 @@ class RolePermissionSeeder extends Seeder
             'document.view', 'document.upload', 'document.delete',
             'report.view',
         ],
-        'PEG' => [
+        'DOSEN' => [
+            'document.view', 'document.upload', 'document.delete',
+            'leave.view', 'leave.create', 'leave.cancel',
+            'report.view',
+        ],
+        'PEGAWAI' => [
             'document.view', 'document.upload', 'document.delete',
             'leave.view', 'leave.create', 'leave.cancel',
             'report.view',

@@ -74,7 +74,7 @@ class HrdAuditTest extends TestCase
     public function test_hrd_update_role_permissions_tercatat(): void
     {
         $hrd = $this->buatUser('1111111111111111', 'HRD');
-        Role::firstOrCreate(['code' => 'PEG'], ['name' => 'PEG']);
+        Role::firstOrCreate(['code' => 'PEGAWAI'], ['name' => 'PEGAWAI']);
         $role = Role::firstOrCreate(['code' => 'HRD'], ['name' => 'HRD']);
 
         $this->actingAs($hrd)->putJson('/api/role-permissions', [
@@ -96,7 +96,7 @@ class HrdAuditTest extends TestCase
     public function test_peg_toggle_holiday_ditolak_tanpa_audit(): void
     {
         $hrd = $this->buatUser('1111111111111111', 'HRD');
-        $peg = $this->buatUser('2222222222222222', 'PEG');
+        $peg = $this->buatUser('2222222222222222', 'PEGAWAI');
         $holiday = Holiday::create([
             'date' => '2026-08-17',
             'name' => 'Hari Kemerdekaan',

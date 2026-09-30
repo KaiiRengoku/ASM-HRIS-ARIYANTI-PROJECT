@@ -227,7 +227,8 @@ class DashboardController extends Controller
         $role = $user->roles->first()->code ?? null;
 
         switch ($role) {
-            case 'PEG':
+            case 'DOSEN':
+            case 'PEGAWAI':
                 return $this->pegawaiStats($request);
             case 'KABAG':
                 return $this->kabagStats($request);

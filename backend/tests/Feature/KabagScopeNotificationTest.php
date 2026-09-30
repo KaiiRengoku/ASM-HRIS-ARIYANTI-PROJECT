@@ -59,8 +59,8 @@ class KabagScopeNotificationTest extends TestCase
         $unitA = OrganizationalUnit::create(['name' => 'Unit A', 'code' => 'UA']);
         $unitB = OrganizationalUnit::create(['name' => 'Unit B', 'code' => 'UB']);
         $kabag = $this->buatUser('1234567890123456', 'KABAG', $unitA->id);
-        $bawahan = $this->buatUser('1234567890123457', 'PEG', $unitA->id);
-        $luar = $this->buatUser('1234567890123458', 'PEG', $unitB->id);
+        $bawahan = $this->buatUser('1234567890123457', 'PEGAWAI', $unitA->id);
+        $luar = $this->buatUser('1234567890123458', 'PEGAWAI', $unitB->id);
 
         $type = $this->annualType();
         $milikUnit = $this->pendingLeave($bawahan, $type);
@@ -79,7 +79,7 @@ class KabagScopeNotificationTest extends TestCase
         $unitA = OrganizationalUnit::create(['name' => 'Unit A', 'code' => 'UA']);
         $unitB = OrganizationalUnit::create(['name' => 'Unit B', 'code' => 'UB']);
         $kabag = $this->buatUser('1234567890123456', 'KABAG', $unitA->id);
-        $luar = $this->buatUser('1234567890123457', 'PEG', $unitB->id);
+        $luar = $this->buatUser('1234567890123457', 'PEGAWAI', $unitB->id);
 
         $leave = $this->pendingLeave($luar, $this->annualType());
 
@@ -90,8 +90,8 @@ class KabagScopeNotificationTest extends TestCase
     {
         $unitA = OrganizationalUnit::create(['name' => 'Unit A', 'code' => 'UA']);
         $kabag = $this->buatUser('1234567890123456', 'KABAG', $unitA->id);
-        $bawahan = $this->buatUser('1234567890123457', 'PEG', $unitA->id);
-        $luarUnit = $this->buatUser('1234567890123458', 'PEG');
+        $bawahan = $this->buatUser('1234567890123457', 'PEGAWAI', $unitA->id);
+        $luarUnit = $this->buatUser('1234567890123458', 'PEGAWAI');
 
         $type = $this->annualType();
 

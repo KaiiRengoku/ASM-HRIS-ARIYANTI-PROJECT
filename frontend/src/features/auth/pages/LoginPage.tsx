@@ -59,7 +59,8 @@ export default function LoginPage() {
         PD_II: "/dashboard/pd-2",
         PD_III: "/dashboard/pd-3",
         KABAG: "/dashboard/kabag",
-        PEG: "/dashboard/pegawai",
+        DOSEN: "/dashboard/pegawai",
+        PEGAWAI: "/dashboard/pegawai",
       };
       navigate(roleRoutes[role] || "/dashboard/pegawai");
     } catch (error: any) {

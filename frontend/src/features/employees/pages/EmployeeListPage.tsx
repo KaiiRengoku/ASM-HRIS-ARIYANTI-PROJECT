@@ -20,7 +20,7 @@ const emptyForm = {
   nik: '', nama_lengkap: '', email: '', nomor_hp: '',
   jenis_kelamin: '', status_kepegawaian: 'aktif',
   tanggal_masuk_kerja: '', nip: '', nidn: '', alamat: '',
-  password: '', role: 'PEG', position_id: '', is_dosen: false,
+  password: '', role: 'PEGAWAI', position_id: '', is_dosen: false,
 };
 
 export default function EmployeeListPage() {
@@ -31,7 +31,7 @@ export default function EmployeeListPage() {
   const [form, setForm] = useState<Record<string, any>>(emptyForm);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountEmp, setAccountEmp] = useState<any>(null);
-  const [accountForm, setAccountForm] = useState({ password: '', role: 'PEG', position_id: '' });
+  const [accountForm, setAccountForm] = useState({ password: '', role: 'PEGAWAI', position_id: '' });
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
   const canCreate = hasPermission('employee.create');
@@ -109,7 +109,7 @@ export default function EmployeeListPage() {
       status_kepegawaian: emp.status_kepegawaian || '',
       tanggal_masuk_kerja: emp.tanggal_masuk_kerja || '', nip: emp.nip || '',
       nidn: emp.nidn || '', alamat: emp.alamat || '',
-      password: '', role: emp.account?.role || 'PEG', position_id: emp.position_id ? String(emp.position_id) : '',
+      password: '', role: emp.account?.role || 'PEGAWAI', position_id: emp.position_id ? String(emp.position_id) : '',
       is_dosen: !!emp.is_dosen,
     });
     setOpen(true);
@@ -119,7 +119,7 @@ export default function EmployeeListPage() {
 
   const openAccount = (emp: any) => {
     setAccountEmp(emp);
-    setAccountForm({ password: '', role: emp.account?.role || 'PEG', position_id: emp.position_id ? String(emp.position_id) : '' });
+    setAccountForm({ password: '', role: emp.account?.role || 'PEGAWAI', position_id: emp.position_id ? String(emp.position_id) : '' });
     setAccountOpen(true);
   };
 
@@ -218,7 +218,7 @@ export default function EmployeeListPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Role *</Label>
-                      <Select value={form.role || 'PEG'} onValueChange={(v) => set('role', v)}>
+                      <Select value={form.role || 'PEGAWAI'} onValueChange={(v) => set('role', v)}>
                         <SelectTrigger><SelectValue placeholder="Pilih role" /></SelectTrigger>
                         <SelectContent>
                           {roles?.map((r: any) => (

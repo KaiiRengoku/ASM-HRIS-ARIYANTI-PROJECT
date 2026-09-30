@@ -3,38 +3,20 @@
 namespace App\Services;
 
 use App\Models\Employee;
-use Illuminate\Support\Carbon;
 
 class LeaveCalculationService
 {
+    /**
+     * Jatah cuti tahunan awal.
+     *
+     * Sistem tidak lagi menghitung hak cuti berdasarkan masa kerja.
+     * Jatah awal seragam 12 hari; penyesuaian (kuota berbeda per orang)
+     * dilakukan HRD secara manual melalui leave-balances/adjust.
+     */
+    public const DEFAULT_ENTITLED_DAYS = 12.0;
+
     public static function entitledDays(Employee $employee, int $year): float
     {
-        if (!$employee->tanggal_masuk_kerja) {
-            return 12;
-        }
-
-        $masuk = Carbon::parse($employee->tanggal_masuk_kerja);
-        $periodStart = Carbon::create($year, 1, 1);
-        $periodEnd = Carbon::create($year, 12, 31);
-        $anniversary = $masuk->copy()->addYear();
-
-        if ($anniversary->gt($periodEnd)) {
-            return 0;
-        }
-
-        $firstAccrualYear = $anniversary->month <= 6 ? $anniversary->year : $anniversary->year + 1;
-        if ($firstAccrualYear > $year) {
-            return 0;
-        }
-        if ($year === $firstAccrualYear) {
-            return 6;
-        }
-
-        $years = (int) $masuk->diffInYears($periodStart);
-        if ($years < 5) return 12;
-        if ($years <= 10) return 14;
-        if ($years <= 15) return 18;
-        if ($years <= 20) return 21;
-        return 26;
+        return self::DEFAULT_ENTITLED_DAYS;
     }
 }

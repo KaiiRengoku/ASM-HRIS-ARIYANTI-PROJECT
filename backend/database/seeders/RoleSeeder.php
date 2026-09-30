@@ -16,17 +16,19 @@ class RoleSeeder extends Seeder
             ['name' => 'Pembantu Direktur III', 'code' => 'PD_III', 'description' => 'Pembantu Direktur III'],
             ['name' => 'Kepala Bagian', 'code' => 'KABAG', 'description' => 'Kepala Bagian'],
             ['name' => 'HRD', 'code' => 'HRD', 'description' => 'Human Resource Development'],
-            ['name' => 'Dosen & Pegawai', 'code' => 'PEG', 'description' => 'Dosen & Pegawai'],
+            ['name' => 'Dosen', 'code' => 'DOSEN', 'description' => 'Dosen'],
+            ['name' => 'Pegawai/Staff', 'code' => 'PEGAWAI', 'description' => 'Pegawai/Staff'],
         ];
 
         foreach ($roles as $role) {
-            DB::table('roles')->insert([
-                'name' => $role['name'],
-                'code' => $role['code'],
-                'description' => $role['description'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('roles')->updateOrInsert(
+                ['code' => $role['code']],
+                [
+                    'name' => $role['name'],
+                    'description' => $role['description'],
+                    'updated_at' => now(),
+                ]
+            );
         }
     }
 }

@@ -19,7 +19,7 @@ class StoreEmployeeRequest extends FormRequest
             'position_id' => ['nullable', 'exists:positions,id'],
             'nik' => ['required', 'string', 'size:16', 'regex:/^[0-9]{16}$/', 'unique:employees,nik', 'unique:users,nik'],
             'password' => ['required', 'string', 'min:8'],
-            'role' => ['required', 'string', Rule::in(['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III', 'KABAG', 'PEG'])],
+            'role' => ['required', 'string', Rule::in(['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III', 'KABAG', 'DOSEN', 'PEGAWAI'])],
             'nama_lengkap' => ['required', 'string', 'max:150'],
             'gelar_depan' => ['nullable', 'string', 'max:50'],
             'gelar_belakang' => ['nullable', 'string', 'max:50'],

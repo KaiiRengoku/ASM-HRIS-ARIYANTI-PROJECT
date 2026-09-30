@@ -38,7 +38,7 @@ class LeaveRecapTest extends TestCase
     public function test_direktur_melihat_rekap_sisa_cuti_per_pegawai(): void
     {
         $direktur = $this->buatUser('1234567890123456', 'DIREKTUR');
-        $staf = $this->buatUser('1234567890123457', 'PEG');
+        $staf = $this->buatUser('1234567890123457', 'PEGAWAI');
 
         $annual = LeaveType::create([
             'name' => 'Cuti Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => true,
@@ -65,8 +65,23 @@ class LeaveRecapTest extends TestCase
 
     public function test_pegawai_tidak_boleh_akses_rekap(): void
     {
-        $peg = $this->buatUser('1234567890123456', 'PEG');
+        $peg = $this->buatUser('1234567890123456', 'PEGAWAI');
 
         $this->actingAs($peg)->getJson('/api/reports/leaves/recap?year=2026')->assertForbidden();
+    }
+
+    public function test_kabag_tidak_boleh_akses_rekap_belum_diputuskan(): void
+    {
+        $kabag = $this->buatUser('1234567890123456', 'KABAG');
+
+        $this->actingAs($kabag)->getJson('/api/reports/leaves/recap?year=2026')->assertForbidden();
+    }
+
+    public function test_pimpinan_dan_hrd_boleh_akses_rekap(): void
+    {
+        foreach (['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'] as $i => $role) {
+            $u = $this->buatUser('12345678901234' . $i . '0', $role);
+            $this->actingAs($u)->getJson('/api/reports/leaves/recap?year=2026')->assertOk();
+        }
     }
 }

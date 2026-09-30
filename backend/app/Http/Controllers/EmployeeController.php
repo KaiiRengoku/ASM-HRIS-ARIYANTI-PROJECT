@@ -148,7 +148,7 @@ class EmployeeController extends Controller
     {
         $request->validate([
             'password' => ['nullable', 'string', 'min:8'],
-            'role' => ['required', 'string', Rule::in(['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III', 'KABAG', 'PEG'])],
+            'role' => ['required', 'string', Rule::in(['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III', 'KABAG', 'DOSEN', 'PEGAWAI'])],
             'position_id' => ['nullable', 'exists:positions,id'],
         ]);
 
