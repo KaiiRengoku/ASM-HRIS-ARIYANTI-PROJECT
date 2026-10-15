@@ -25,12 +25,19 @@ class ReportController extends Controller
         ]);
     }
 
+    // Daftar pegawai untuk ekspor. KABAG (bila diberi izin ekspor) tetap dibatasi unitnya.
+    private function employeesQuery(Request $request)
+    {
+        return Employee::with(['position', 'organizationalUnit'])
+            ->when($this->kabagUnitId($request), fn ($q, $unitId) => $q->where('organizational_unit_id', $unitId));
+    }
+
 public function exportEmployees(Request $request)
 {
-    $employees = Employee::with(['position', 'organizationalUnit'])->get();
+    $employees = $this->employeesQuery($request)->get();
 
     $fh = fopen('php://temp', 'r+');
-    fputcsv($fh, ['NIK', 'Nama', 'Email', 'Jabatan', 'Unit', 'Status', 'Telepon', 'Tanggal Masuk']);
+    fputcsv($fh, ['Nomor Induk Kepegawaian', 'Nama', 'Email', 'Jabatan', 'Unit', 'Status', 'Telepon', 'Tanggal Masuk']);
     foreach ($employees as $emp) {
         fputcsv($fh, [
             $emp->nik,
@@ -114,6 +121,7 @@ private function leaveQuery(Request $request)
     }
 
     return $query
+        ->when($this->kabagUnitId($request), fn ($q, $unitId) => $q->whereHas('employee', fn ($e) => $e->where('organizational_unit_id', $unitId)))
         ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
         ->when($request->filled('leave_type_id'), fn ($q) => $q->where('leave_type_id', $request->leave_type_id))
         ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->employee_id));
@@ -175,12 +183,12 @@ private function leaveQuery(Request $request)
 
     public function exportEmployeesExcel(Request $request)
 {
-    $employees = Employee::with(['position', 'organizationalUnit'])->get();
+    $employees = $this->employeesQuery($request)->get();
     $rows = '';
     foreach ($employees as $emp) {
         $rows .= '<tr><td>' . e($emp->nik) . '</td><td>' . e($emp->nama_lengkap) . '</td><td>' . e($emp->email) . '</td><td>' . e($emp->position?->name ?? '') . '</td><td>' . e($emp->organizationalUnit?->name ?? '') . '</td><td>' . e($emp->status_kepegawaian ?? '') . '</td><td>' . e($emp->nomor_hp ?? '') . '</td><td>' . e($emp->tanggal_masuk_kerja ?? '') . '</td></tr>';
     }
-    $html = '<table border="1"><tr><th>NIK</th><th>Nama</th><th>Email</th><th>Jabatan</th><th>Unit</th><th>Status</th><th>Telepon</th><th>Tanggal Masuk</th></tr>' . $rows . '</table>';
+    $html = '<table border="1"><tr><th>Nomor Induk Kepegawaian</th><th>Nama</th><th>Email</th><th>Jabatan</th><th>Unit</th><th>Status</th><th>Telepon</th><th>Tanggal Masuk</th></tr>' . $rows . '</table>';
     $this->audit($request, 'reports/employees/excel', Employee::class, 0);
     return Response::make($html, 200, [
         'Content-Type' => 'application/vnd.ms-excel',
@@ -243,7 +251,7 @@ public function exportBiodataWord(Request $request, $id)
 
 public function exportEmployeesPdf(Request $request)
 {
-    $employees = Employee::with(['position', 'organizationalUnit'])->get();
+    $employees = $this->employeesQuery($request)->get();
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.employees', compact('employees'));
     $this->audit($request, 'reports/employees/pdf', Employee::class, 0);
     return $pdf->download('pegawai_' . date('Y-m-d') . '.pdf');

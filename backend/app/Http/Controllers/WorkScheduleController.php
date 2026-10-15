@@ -42,7 +42,13 @@ class WorkScheduleController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $schedule = WorkSchedule::create($data + ['is_working_day' => true, 'is_active' => true]);
+        // effective_from/is_working_day/is_active NOT NULL: isi default bila kosong
+        // (termasuk null eksplisit) supaya tidak error MySQL di production.
+        $data['effective_from'] ??= now()->toDateString();
+        $data['is_working_day'] ??= true;
+        $data['is_active'] ??= true;
+
+        $schedule = WorkSchedule::create($data);
         $this->audit($request, 'CREATE_WORK_SCHEDULE', WorkSchedule::class, $schedule->id, null, $schedule->toArray());
         return response()->json(['success' => true, 'data' => $schedule]);
     }

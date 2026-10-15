@@ -21,6 +21,7 @@ class AccrueAnnualLeave extends Command
     public function handle(): int
     {
         $year = (int) ($this->option('year') ?: now()->year);
+        $carryOver = (bool) $this->option('carry-over');
         $annual = LeaveType::where('code', 'ANNUAL')->first();
         if (!$annual) {
             $this->error('Jenis cuti ANNUAL tidak ditemukan.');
@@ -29,7 +30,7 @@ class AccrueAnnualLeave extends Command
 
         $created = 0;
         $skipped = 0;
-        DB::transaction(function () use ($annual, $year, &$created, &$skipped) {
+        DB::transaction(function () use ($annual, $year, $carryOver, &$created, &$skipped) {
             foreach (Employee::all() as $employee) {
                 if (LeaveBalance::where('employee_id', $employee->id)
                     ->where('leave_type_id', $annual->id)
@@ -39,10 +40,11 @@ class AccrueAnnualLeave extends Command
                     continue;
                 }
                 $entitled = LeaveCalculationService::entitledDays($employee, $year);
-                $prev = (float) (LeaveBalance::where('employee_id', $employee->id)
+                // Sisa tahun lalu hanya dibawa bila diminta lewat --carry-over.
+                $prev = $carryOver ? (float) (LeaveBalance::where('employee_id', $employee->id)
                     ->where('leave_type_id', $annual->id)
                     ->where('period_year', $year - 1)
-                    ->value('remaining_days') ?? 0);
+                    ->value('remaining_days') ?? 0) : 0.0;
                 $remaining = $entitled + $prev;
                 try {
                     $balance = LeaveBalance::create([

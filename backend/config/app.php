@@ -65,6 +65,8 @@ return [
     |
     */
 
+    'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
+
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
     /*

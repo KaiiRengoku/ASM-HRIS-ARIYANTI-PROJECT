@@ -18,7 +18,21 @@ export default function MainLayout() {
   const { user, logout: logoutStore } = useAuthStore();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { data } = useQuery({ queryKey: ["notifications-latest"], queryFn: fetchLatest });
+  // PENGAMAN CADANGAN: bila websocket/realtime (Reverb) mati atau tersendat,
+  // notifikasi tetap tersegarkan lewat pengecekan berkala tiap 20 detik.
+  // Saat realtime normal, lonceng tetap ter-update seketika (invalidateQueries dari useNotifications).
+  // refetchIntervalInBackground: true -> tetap berjalan saat tab tidak aktif, agar notifikasi
+  // tidak sampai hilang/terlewat (prioritas pemilik). enabled membatasi agar tidak ada
+  // permintaan saat pengguna belum login. Polling ini hanya menyegarkan DAFTAR & JUMLAH,
+  // tanpa memunculkan toast (toast tetap hanya dari listener Echo), jadi tidak berisik.
+  const { data } = useQuery({
+    queryKey: ["notifications-latest"],
+    queryFn: fetchLatest,
+    enabled: !!user,
+    refetchInterval: 20000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
+  });
 
   const readOne = useMutation({
     mutationFn: (id: string) => api.post(`/notifications/${id}/read`),
@@ -30,9 +44,16 @@ export default function MainLayout() {
   });
 
   const handleLogout = async () => {
-    await logoutService();
-    logoutStore();
-    navigate("/login");
+    try {
+      await logoutService();
+    } finally {
+      // Bersihkan state lokal apa pun hasil panggilan server, agar sesi tidak
+      // tertinggal saat jaringan/server error.
+      logoutStore();
+      // Buang seluruh cache data user lama agar tidak terbawa saat ganti akun.
+      queryClient.clear();
+      navigate("/login");
+    }
   };
 
   return (
@@ -40,23 +61,25 @@ export default function MainLayout() {
       <Sidebar />
       <MobileSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-          <div className="h-full px-4 sm:px-6 flex items-center justify-between">
+        <header className="h-16 border-b border-border/60 bg-card/85 backdrop-blur supports-[backdrop-filter]:bg-card/70 sticky top-0 z-10 shadow-[0_1px_12px_-6px_rgb(28_25_23/0.12)]">
+          <div className="h-full px-4 sm:px-6 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setMenuOpen(true)}
                 aria-label="Buka menu"
-                className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                className="lg:hidden p-2 -ml-2 rounded-xl hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
               >
                 <Menu className="h-5 w-5" />
               </button>
-              <h1 className="text-lg font-semibold text-foreground">ASM HRIS</h1>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-lg font-bold tracking-tight text-foreground">ASM HRIS</h1>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="relative p-2 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                    className="relative p-2.5 rounded-xl border border-border/60 bg-background shadow-xs hover:bg-accent hover:border-primary/30 hover:text-foreground transition-all duration-200 text-muted-foreground"
                     aria-label="Notifikasi"
                   >
                     <Bell className="h-5 w-5" />
@@ -67,18 +90,10 @@ export default function MainLayout() {
                     )}
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80 p-0">
+                <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-1.5rem)] p-0">
                   <div className="flex items-center justify-between px-3 py-2 border-b">
                     <span className="text-sm font-semibold">Notifikasi</span>
                     <div className="flex items-center gap-3">
-                    {'Notification' in window && Notification.permission !== 'granted' && (
-                      <button
-                        className="text-xs text-primary hover:underline"
-                        onClick={() => Notification.requestPermission()}
-                      >
-                        Aktifkan notifikasi browser
-                      </button>
-                    )}
                     {(data?.unread ?? 0) > 0 && (
                       <button
                         className="text-xs text-primary hover:underline"
@@ -110,7 +125,7 @@ export default function MainLayout() {
               </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                  <button className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-[#8F0000] flex items-center justify-center text-primary-foreground text-sm font-bold shadow-[0_2px_10px_-2px_rgb(211_0_0/0.5)] hover:shadow-[0_4px_16px_-2px_rgb(211_0_0/0.55)] hover:scale-105 transition-all duration-200 ring-2 ring-primary/15">
                     {user?.name?.charAt(0) || "U"}
                   </button>
                 </DropdownMenuTrigger>
@@ -129,7 +144,7 @@ export default function MainLayout() {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 overflow-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto animate-page-in">
           <Outlet />
         </main>
       </div>

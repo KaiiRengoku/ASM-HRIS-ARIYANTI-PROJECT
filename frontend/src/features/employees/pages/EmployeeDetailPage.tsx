@@ -35,6 +35,7 @@ const downloadBiodata = async (kind: 'pdf' | 'word', employeeId: number, nik: st
   document.body.appendChild(link);
   link.click();
   link.remove();
+  window.URL.revokeObjectURL(blobUrl);
 };
 
 export default function EmployeeDetailPage() {
@@ -43,6 +44,7 @@ export default function EmployeeDetailPage() {
   const { hasPermission } = useAuthStore();
   const canUpdate = hasPermission('employee.update');
   const canManageAccount = hasPermission('auth.user.update');
+  const canExportBiodata = hasPermission('report.view');
   const { data: employee, isLoading, error } = useQuery({
     queryKey: ['employee', id],
     queryFn: () => getEmployee(Number(id)),
@@ -77,8 +79,12 @@ export default function EmployeeDetailPage() {
               <Button>Edit</Button>
             </Link>
           )}
-          <Button variant="outline" onClick={() => employee && downloadBiodata('pdf', employee.id, employee.nik)}>Unduh PDF</Button>
-          <Button variant="outline" onClick={() => employee && downloadBiodata('word', employee.id, employee.nik)}>Unduh Word</Button>
+          {canExportBiodata && (
+            <>
+              <Button variant="outline" onClick={() => employee && downloadBiodata('pdf', employee.id, employee.nik)}>Unduh PDF</Button>
+              <Button variant="outline" onClick={() => employee && downloadBiodata('word', employee.id, employee.nik)}>Unduh Word</Button>
+            </>
+          )}
           <Link to="/pegawai">
             <Button variant="outline">Kembali</Button>
           </Link>
@@ -90,13 +96,14 @@ export default function EmployeeDetailPage() {
           <CardTitle>{employee.nama_lengkap}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <ReadOnlyField label="NIK" value={employee.nik} />
+          <ReadOnlyField label="Nomor Induk Kepegawaian" value={employee.nik} />
           <ReadOnlyField label="Email" value={employee.email} />
           <ReadOnlyField label="Nomor HP" value={employee.nomor_hp} />
           <ReadOnlyField label="Jenis Kelamin" value={employee.jenis_kelamin === 'L' ? 'Laki-laki' : employee.jenis_kelamin === 'P' ? 'Perempuan' : '-'} />
           <ReadOnlyField label="NIP" value={employee.nip} />
           <ReadOnlyField label="NIDN" value={employee.nidn} />
           <ReadOnlyField label="Jabatan" value={employee.position} />
+          <ReadOnlyField label="Atasan Langsung" value={employee.supervisor ? `${employee.supervisor.nama_lengkap} (${employee.supervisor.nik})` : null} />
           <ReadOnlyField label="Unit" value={employee.organizational_unit} />
           <ReadOnlyField label="Status Kepegawaian" value={employee.status_kepegawaian} />
           <ReadOnlyField label="Tanggal Masuk" value={employee.tanggal_masuk_kerja} />
@@ -117,26 +124,43 @@ export default function EmployeeDetailPage() {
           {!employee.educations?.length ? (
             <p className="text-muted-foreground">Belum ada riwayat pendidikan.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Jenjang</TableHead>
-                  <TableHead>Institusi</TableHead>
-                  <TableHead>Jurusan</TableHead>
-                  <TableHead>Tahun</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: kartu per riwayat — tabel 4 kolom tak muat di layar sempit. */}
+              <div className="divide-y md:hidden">
                 {employee.educations.map((e: any, i: number) => (
-                  <TableRow key={i}>
-                    <TableCell>{e.jenjang}</TableCell>
-                    <TableCell>{e.nama_pt || '-'}</TableCell>
-                    <TableCell>{e.jurusan || '-'}</TableCell>
-                    <TableCell>{e.tahun_masuk && e.tahun_lulus ? `${e.tahun_masuk} - ${e.tahun_lulus}` : '-'}</TableCell>
-                  </TableRow>
+                  <div key={i} className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <p className="font-medium">{e.jenjang}</p>
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                      <div className="col-span-2 min-w-0"><dt className="text-muted-foreground">Institusi</dt><dd className="truncate" title={e.nama_pt || ''}>{e.nama_pt || '-'}</dd></div>
+                      <div className="min-w-0"><dt className="text-muted-foreground">Jurusan</dt><dd className="truncate" title={e.jurusan || ''}>{e.jurusan || '-'}</dd></div>
+                      <div><dt className="text-muted-foreground">Tahun</dt><dd>{e.tahun_masuk && e.tahun_lulus ? `${e.tahun_masuk} - ${e.tahun_lulus}` : '-'}</dd></div>
+                    </dl>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Jenjang</TableHead>
+                    <TableHead>Institusi</TableHead>
+                    <TableHead>Jurusan</TableHead>
+                    <TableHead>Tahun</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employee.educations.map((e: any, i: number) => (
+                    <TableRow key={i}>
+                      <TableCell>{e.jenjang}</TableCell>
+                      <TableCell>{e.nama_pt || '-'}</TableCell>
+                      <TableCell>{e.jurusan || '-'}</TableCell>
+                      <TableCell>{e.tahun_masuk && e.tahun_lulus ? `${e.tahun_masuk} - ${e.tahun_lulus}` : '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -149,26 +173,43 @@ export default function EmployeeDetailPage() {
           {!employee.position_histories?.length ? (
             <p className="text-muted-foreground">Belum ada riwayat jabatan.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Jabatan</TableHead>
-                  <TableHead>Unit Kerja</TableHead>
-                  <TableHead>No. SK</TableHead>
-                  <TableHead>Periode</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: kartu per jabatan — tabel 4 kolom tak muat di layar sempit. */}
+              <div className="divide-y md:hidden">
                 {employee.position_histories.map((h: any) => (
-                  <TableRow key={h.id}>
-                    <TableCell>{h.jabatan}</TableCell>
-                    <TableCell>{h.unit_kerja || '-'}</TableCell>
-                    <TableCell>{h.no_sk || '-'}</TableCell>
-                    <TableCell>{h.start_date ? String(h.start_date).slice(0, 10) : '-'} s.d {h.end_date ? String(h.end_date).slice(0, 10) : 'sekarang'}</TableCell>
-                  </TableRow>
+                  <div key={h.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <p className="font-medium">{h.jabatan}</p>
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                      <div className="min-w-0"><dt className="text-muted-foreground">Unit Kerja</dt><dd className="truncate" title={h.unit_kerja || ''}>{h.unit_kerja || '-'}</dd></div>
+                      <div className="min-w-0"><dt className="text-muted-foreground">No. SK</dt><dd className="truncate" title={h.no_sk || ''}>{h.no_sk || '-'}</dd></div>
+                      <div className="col-span-2"><dt className="text-muted-foreground">Periode</dt><dd>{h.start_date ? String(h.start_date).slice(0, 10) : '-'} s.d {h.end_date ? String(h.end_date).slice(0, 10) : 'sekarang'}</dd></div>
+                    </dl>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Jabatan</TableHead>
+                    <TableHead>Unit Kerja</TableHead>
+                    <TableHead>No. SK</TableHead>
+                    <TableHead>Periode</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employee.position_histories.map((h: any) => (
+                    <TableRow key={h.id}>
+                      <TableCell>{h.jabatan}</TableCell>
+                      <TableCell>{h.unit_kerja || '-'}</TableCell>
+                      <TableCell>{h.no_sk || '-'}</TableCell>
+                      <TableCell>{h.start_date ? String(h.start_date).slice(0, 10) : '-'} s.d {h.end_date ? String(h.end_date).slice(0, 10) : 'sekarang'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -179,7 +220,7 @@ export default function EmployeeDetailPage() {
             <CardTitle>Informasi Akun</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <ReadOnlyField label="Username (NIK)" value={employee.nik} />
+            <ReadOnlyField label="Username (Nomor Induk Kepegawaian)" value={employee.nik} />
             <ReadOnlyField label="Role" value={employee.account?.role_name || employee.account?.role || 'Belum ada akun'} />
           </CardContent>
         </Card>
@@ -193,26 +234,43 @@ export default function EmployeeDetailPage() {
           {!balances || balances.length === 0 ? (
             <p className="text-muted-foreground">Belum ada data saldo cuti.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Jenis Cuti</TableHead>
-                  <TableHead>Hak</TableHead>
-                  <TableHead>Terpakai</TableHead>
-                  <TableHead>Sisa</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: kartu per saldo — tabel 4 kolom tak muat di layar sempit. */}
+              <div className="divide-y md:hidden">
                 {balances.map((b: any) => (
-                  <TableRow key={b.id}>
-                    <TableCell>{b.leave_type?.name || b.leave_type_id}</TableCell>
-                    <TableCell>{b.entitled_days + b.adjustment_days}</TableCell>
-                    <TableCell>{b.used_days}</TableCell>
-                    <TableCell className="font-bold">{b.remaining_days}</TableCell>
-                  </TableRow>
+                  <div key={b.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <p className="font-medium">{b.leave_type?.name || b.leave_type_id}</p>
+                    <dl className="grid grid-cols-3 gap-x-3 gap-y-2 text-xs">
+                      <div><dt className="text-muted-foreground">Hak</dt><dd>{b.entitled_days + b.adjustment_days}</dd></div>
+                      <div><dt className="text-muted-foreground">Terpakai</dt><dd>{b.used_days}</dd></div>
+                      <div><dt className="text-muted-foreground">Sisa</dt><dd className="font-bold">{b.remaining_days}</dd></div>
+                    </dl>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Jenis Cuti</TableHead>
+                    <TableHead>Hak</TableHead>
+                    <TableHead>Terpakai</TableHead>
+                    <TableHead>Sisa</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {balances.map((b: any) => (
+                    <TableRow key={b.id}>
+                      <TableCell>{b.leave_type?.name || b.leave_type_id}</TableCell>
+                      <TableCell>{b.entitled_days + b.adjustment_days}</TableCell>
+                      <TableCell>{b.used_days}</TableCell>
+                      <TableCell className="font-bold">{b.remaining_days}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

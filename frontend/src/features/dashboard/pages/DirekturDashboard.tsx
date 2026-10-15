@@ -9,7 +9,7 @@ const fetchStats = async () => {
 
 export default function DirekturDashboard() {
     const { data, isLoading, error } = useQuery({
-        queryKey: ['dashboard-stats'],
+        queryKey: ['dashboard-stats', 'direktur'],
         queryFn: fetchStats,
     });
 

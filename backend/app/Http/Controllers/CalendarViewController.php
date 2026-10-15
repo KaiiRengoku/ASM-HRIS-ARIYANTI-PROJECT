@@ -55,8 +55,10 @@ class CalendarViewController extends Controller
             ->with('employee:id,nama_lengkap')
             ->where('start_date', '<=', $to)
             ->where('end_date', '>=', $from)
-            ->whereNotIn('status', ['Ditolak Kepala Bagian', 'Ditolak HRD', 'Cancelled'])
-            ->when(!$this->canViewAll($request), fn ($q) => $q->where('employee_id', $request->user()->employee_id))
+            ->whereNotIn('status', ['Ditolak Atasan Langsung', 'Ditolak Kepala Bagian', 'Ditolak Direktur', 'Ditolak HRD', 'Cancelled'])
+            // KABAG dibatasi ke unitnya; HRD/DIREKTUR/PD melihat semua; sisanya milik sendiri.
+            ->when($this->kabagUnitId($request), fn ($q, $unitId) => $q->whereHas('employee', fn ($e) => $e->where('organizational_unit_id', $unitId)))
+            ->when(!$this->canViewAll($request) && !$this->kabagUnitId($request), fn ($q) => $q->where('employee_id', $request->user()->employee_id))
             ->latest()
             ->paginate($validated['per_page'] ?? 20);
 

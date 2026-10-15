@@ -85,7 +85,7 @@ class RoleEnforcementTest extends TestCase
         \App\Models\Role::firstOrCreate(['code' => 'PEGAWAI'], ['name' => 'Dosen & Pegawai']);
 
         $response = $this->actingAs($hrd)->postJson('/api/employees', [
-            'nik' => '1234567890123457',
+            'nik' => '447199001',
             'nama_lengkap' => 'Pegawai Baru',
             'email' => 'baru@example.com',
             'tanggal_masuk_kerja' => '2024-01-15',
@@ -94,7 +94,7 @@ class RoleEnforcementTest extends TestCase
         ]);
 
         $response->assertCreated();
-        $this->assertDatabaseHas('users', ['nik' => '1234567890123457']);
+        $this->assertDatabaseHas('users', ['nik' => '447199001']);
         $response->assertJsonPath('data.has_account', true);
         $response->assertJsonPath('data.account.role', 'PEGAWAI');
     }
@@ -161,12 +161,17 @@ class RoleEnforcementTest extends TestCase
             'created_by' => $hrd->id,
         ]);
 
+        // Alur baru: level=all = "menunggu persetujuan saya".
+        // Untuk HRD, ini mencakup semua tahap yang berujung ke HRD
+        // (Pending, Disetujui Kepala Bagian, Disetujui Direktur).
         $l1 = $this->actingAs($hrd)->getJson('/api/leaves?level=1')->assertOk()->json('data');
         $l2 = $this->actingAs($hrd)->getJson('/api/leaves?level=2')->assertOk()->json('data');
+        $semua = $this->actingAs($hrd)->getJson('/api/leaves?level=all')->assertOk()->json('data');
 
+        // Antrean HRD memuat semua pengajuan yang belum rampung.
         $this->assertContains($pending->id, array_column($l1, 'id'));
-        $this->assertNotContains($kabagOk->id, array_column($l1, 'id'));
         $this->assertContains($kabagOk->id, array_column($l2, 'id'));
-        $this->assertNotContains($pending->id, array_column($l2, 'id'));
+        $this->assertContains($pending->id, array_column($semua, 'id'));
+        $this->assertContains($kabagOk->id, array_column($semua, 'id'));
     }
 }

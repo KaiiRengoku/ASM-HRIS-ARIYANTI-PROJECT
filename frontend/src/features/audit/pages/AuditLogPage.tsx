@@ -31,6 +31,26 @@ export default function AuditLogPage() {
 
             <Card>
                 <CardContent className="p-0">
+                    {/* Mobile: kartu per log — tabel 4 kolom (Waktu panjang) tak muat. */}
+                    <div className="divide-y md:hidden">
+                        {logs.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">Belum ada aktivitas tercatat</p>
+                        ) : (
+                            logs.map((log: any) => (
+                                <div key={log.id} className="space-y-3 p-4">
+                                    <div className="min-w-0">
+                                        <p className="truncate font-medium" title={log.user?.name || 'Sistem'}>{log.user?.name || 'Sistem'}</p>
+                                        <p className="text-xs text-muted-foreground">{new Date(log.created_at).toLocaleString()}</p>
+                                    </div>
+                                    <dl className="grid grid-cols-1 gap-y-2 text-xs">
+                                        <div><dt className="text-muted-foreground">Aksi</dt><dd className="break-words">{log.action}</dd></div>
+                                        <div><dt className="text-muted-foreground">Target</dt><dd className="break-words">{(log.auditable_type || '').split('\\').pop()} #{log.auditable_id}</dd></div>
+                                    </dl>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className="hidden md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -51,12 +71,13 @@ export default function AuditLogPage() {
                                         <TableCell>{new Date(log.created_at).toLocaleString()}</TableCell>
                                         <TableCell>{log.user?.name || 'Sistem'}</TableCell>
                                         <TableCell>{log.action}</TableCell>
-                                        <TableCell>{log.auditable_type.split('\\').pop()} #{log.auditable_id}</TableCell>
+                                        <TableCell>{(log.auditable_type || '').split('\\').pop()} #{log.auditable_id}</TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
                     </Table>
+                    </div>
                 </CardContent>
             </Card>
 

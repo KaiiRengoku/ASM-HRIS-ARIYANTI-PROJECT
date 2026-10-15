@@ -17,35 +17,44 @@ use Illuminate\Validation\Rule;
 
 class LeaveController extends Controller
 {
+
+    // Kategori izin ditentukan dari prefiks kode tipe cuti (tidak ada kolom
+    // category di tabel leave_types). Dipakai untuk tab Cuti/Izin & guard Dosen.
+    private const KODE_IZIN = ['PERMIT_ABSENT', 'PERMIT_LEAVE_OFFICE'];
+
     private function canViewAll(Request $request): bool
     {
         return $request->user()->roles()->whereIn('code', ['HRD', 'KABAG', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'])->exists();
     }
 
-    // ponytail: scope Kabag = unit organisasinya sendiri; kalau Kabag belum punya
-    // unit (data lama) fallback global. Upgrade path: tabel atasan langsung per pegawai.
-    private function kabagUnitScope(Request $request): ?int
+    // Apakah user ini atasan langsung (punya bawahan)?
+    private function punyaBawahan(Request $request): bool
     {
-        $role = $request->user()->roles()->first()?->code;
-        if ($role !== 'KABAG') {
-            return null;
-        }
-        $employee = $request->user()->employee;
-        return $employee?->organizational_unit_id ? (int) $employee->organizational_unit_id : null;
+        return (bool) $request->user()->employee?->subordinates()->exists();
+    }
+
+    private function bawahanIds(Request $request): array
+    {
+        return $request->user()->employee?->subordinates()->pluck('id')->all() ?? [];
     }
 
     private function canSeeLeave(Request $request, LeaveRequest $leave): bool
     {
         $user = $request->user();
-        $role = $user->roles()->first()?->code;
-        if (in_array($role, ['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'], true)) {
+        $roles = $user->roles()->pluck('code')->all();
+        if (array_intersect($roles, ['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'])) {
             return true;
         }
         if ($leave->employee_id === $user->employee_id) {
             return true;
         }
-        if ($role === 'KABAG') {
-            $unitId = $this->kabagUnitScope($request);
+        // Atasan langsung boleh melihat pengajuan bawahannya.
+        $leave->loadMissing('employee');
+        if ($user->employee_id && (int) $leave->employee?->supervisor_id === (int) $user->employee_id) {
+            return true;
+        }
+        if (in_array('KABAG', $roles, true)) {
+            $unitId = $this->kabagUnitId($request);
             if (!$unitId) {
                 return true;
             }
@@ -60,9 +69,160 @@ class LeaveController extends Controller
         return $request->user()->employee_id;
     }
 
+    // ── Alur persetujuan berjenjang ───────────────────────────────────────
+    // Alur BARU (berbasis atasan langsung, dikunci pengguna):
+    //   [Pengaju] → [atasan langsung] → HRD
+    // Semua jabatan mengikuti satu pola ini; yang membedakan hanya kolom
+    // supervisor_id pada pegawai pengaju.
+    // Alur LAMA (fallback, TIDAK dihapus) dipakai bila pengaju belum punya
+    // atasan langsung:
+    //   Dosen/Pegawai         → Kabag     → HRD
+    //   PD_I / PD_II / PD_III → Direktur  → HRD
+    //   Kabag                 → HRD        (langsung)
+    //   Direktur              → HRD        (langsung, tidak menyetujui sendiri)
+    // Ditolak di tahap mana pun = berhenti total. Hanya HRD yang memotong saldo.
+    // Pengajuan tanpa penyetuju di sistem ini dibiarkan tertahan sampai HRD
+    // membuat data historis (status 'Disetujui HRD') lewat pencatatan HRD biasa.
+    private const TAHAP_KABAG = 'KABAG';
+    private const TAHAP_DIREKTUR = 'DIREKTUR';
+    private const TAHAP_HRD = 'HRD';
+    private const TAHAP_SUPERVISOR = 'SUPERVISOR';
+
+    // Tahap awal alur LAMA, berdasarkan role pengaju (dipakai sebagai fallback).
+    private function tahapAwalUntukPengaju(?string $rolePengaju): ?string
+    {
+        return match ($rolePengaju) {
+            'DOSEN', 'PEGAWAI' => self::TAHAP_KABAG,
+            'PD_I', 'PD_II', 'PD_III' => self::TAHAP_DIREKTUR,
+            default => null, // KABAG, DIREKTUR, HRD → tertahan
+        };
+    }
+
+    // Tahap awal pengajuan: atasan langsung bila sudah dipetakan, selain itu
+    // jatuh ke alur lama (phased migration).
+    private function tahapAwal(LeaveRequest $leave): ?string
+    {
+        $leave->loadMissing('employee');
+        if ($leave->employee?->supervisor_id) {
+            return self::TAHAP_SUPERVISOR;
+        }
+
+        return $this->tahapAwalUntukPengaju($this->rolePengaju($leave));
+    }
+
+    // Tahap sesudah tahap tertentu. Kabag/Direktur berujung ke HRD.
+    private function tahapSetelah(string $tahap): ?string
+    {
+        return $tahap === self::TAHAP_HRD ? null : self::TAHAP_HRD;
+    }
+
+    // Role pengaju untuk menentukan tahap awal. roles()->first() tidak
+    // deterministik bila user memegang >1 role, jadi pakai urutan prioritas tetap.
+    private const PRIORITAS_ROLE = ['PD_I', 'PD_II', 'PD_III', 'DIREKTUR', 'KABAG', 'HRD', 'DOSEN', 'PEGAWAI'];
+
+    private function roleUtama($user): ?string
+    {
+        if (!$user) {
+            return null;
+        }
+        $codes = $user->roles()->pluck('code')->all();
+        foreach (self::PRIORITAS_ROLE as $code) {
+            if (in_array($code, $codes, true)) {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
+    private function rolePengaju(LeaveRequest $leave): ?string
+    {
+        $leave->loadMissing('employee.user');
+
+        return $this->roleUtama($leave->employee?->user);
+    }
+
+    // Status pengajuan untuk sebuah tahap, tanpa memandang siapa pengajunya.
+    // Dipakai untuk memeriksa izin bertindak.
+    private function tahapMenungguStatus(LeaveRequest $leave): ?string
+    {
+        return match ($leave->status) {
+            // Atasan langsung bila ada; jika tidak, alur lama sesuai role pengaju.
+            // Pengaju tanpa penyetuju (Kabag/Direktur/HRD tanpa atasan) tertahan
+            // di meja HRD sampai HRD memprosesnya.
+            'Pending' => $this->tahapAwal($leave) ?? self::TAHAP_HRD,
+            'Disetujui Atasan Langsung' => self::TAHAP_HRD, // setelah atasan selalu ke HRD
+            'Disetujui Kepala Bagian' => self::TAHAP_HRD, // setelah Kabag selalu ke HRD
+            'Disetujui Direktur' => self::TAHAP_HRD,
+            default => null,
+        };
+    }
+
+    // Daftar tahap yang boleh ditangani user ini (dipakai level filter & tombol aksi).
+    // Pengguna yang punya bawahan juga berperan sebagai atasan langsung.
+    private function tahapUntukPelaku(Request $request): array
+    {
+        $role = $this->roleUtama($request->user());
+        $tahap = match ($role) {
+            'KABAG' => [self::TAHAP_KABAG],
+            'DIREKTUR' => [self::TAHAP_DIREKTUR],
+            'HRD' => [self::TAHAP_HRD],
+            default => [],
+        };
+        if ($request->user()->employee?->subordinates()->exists()) {
+            $tahap[] = self::TAHAP_SUPERVISOR;
+        }
+
+        return $tahap;
+    }
+
+    // Label status untuk sebuah tahap.
+    private function labelStatusTahap(string $tahap, bool $disetujui): string
+    {
+        $kata = $disetujui ? 'Disetujui' : 'Ditolak';
+
+        return match ($tahap) {
+            self::TAHAP_SUPERVISOR => "{$kata} Atasan Langsung",
+            self::TAHAP_KABAG => "{$kata} Kepala Bagian",
+            self::TAHAP_DIREKTUR => "{$kata} Direktur",
+            default => "{$kata} HRD",
+        };
+    }
+
+    // Apakah tahap ini milik user tersebut (memperhatikan pengaju & urutan)?
+    // Dipakai approve(), reject(), dan penyaringan antrean.
+    private function bolehBertindakDiTahap(Request $request, LeaveRequest $leave, ?string $tahap): bool
+    {
+        if (!$tahap) {
+            return false;
+        }
+        // Tidak boleh menyetujui/menolak pengajuan sendiri (termasuk HRD).
+        if ((int) $leave->employee_id === (int) $request->user()->employee_id) {
+            return false;
+        }
+        // Tahap yang diminta harus sama dengan tahap yang sedang menunggu.
+        if ($this->tahapMenungguStatus($leave) !== $tahap) {
+            return false;
+        }
+        if (!in_array($tahap, $this->tahapUntukPelaku($request), true)) {
+            return false;
+        }
+        // Tahap atasan langsung: hanya atasan yang dipetakan pada pengaju.
+        if ($tahap === self::TAHAP_SUPERVISOR) {
+            $leave->loadMissing('employee');
+
+            return $request->user()->employee_id !== null
+                && (int) $leave->employee->supervisor_id === (int) $request->user()->employee_id;
+        }
+
+        return true;
+    }
+
     private function notifyLeaveStatus(LeaveRequest $leave, $actor, string $statusText, string $message): void
     {
         $leave->loadMissing(['employee.user', 'leaveType']);
+        // Tahap yang kini menunggu, supaya pengaju tahu siapa penanggung jawabnya.
+        $tahapBerikut = $this->tahapMenungguStatus($leave);
         $userId = $leave->employee->user->id ?? \App\Models\User::where('employee_id', $leave->employee_id)->value('id');
         if ($userId) {
             $notification = Notification::create([
@@ -71,7 +231,7 @@ class LeaveController extends Controller
                 'type' => 'leave_status',
                 'title' => 'Status Cuti Berubah',
                 'message' => $message,
-                'data' => ['leave_id' => $leave->id, 'status' => $statusText],
+                'data' => ['leave_id' => $leave->id, 'status' => $statusText, 'tahap_berikut' => $tahapBerikut],
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -80,7 +240,7 @@ class LeaveController extends Controller
         try {
             $to = $leave->employee->email ?? $leave->employee->user->email ?? null;
             if ($to) {
-                \Illuminate\Support\Facades\Mail::to($to)->send(new \App\Mail\LeaveStatusMail($leave, $statusText, $message));
+                \Illuminate\Support\Facades\Mail::to($to)->send(new \App\Mail\LeaveStatusMail($leave, $statusText, $message, $tahapBerikut));
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Gagal kirim email notifikasi cuti: ' . $e->getMessage());
@@ -92,13 +252,14 @@ class LeaveController extends Controller
     {
         try {
             $leave->loadMissing(['employee', 'leaveType', 'approvals.approver']);
-            $kabag = $leave->approvals->firstWhere('approval_level', 1);
+            // Skema tingkat: 1 = penyetuju pertama (atasan langsung/Kabag/Direktur), 2 = HRD.
+            $atasan = $leave->approvals->firstWhere('approval_level', 1);
             $hrd = $leave->approvals->firstWhere('approval_level', 2);
             $last = $leave->approvals->sortByDesc('acted_at')->first();
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.leave-decision', [
                 'leave' => $leave,
-                'kabagName' => $kabag?->approver?->name ?? '-',
-                'kabagDate' => $kabag?->acted_at?->format('d-m-Y') ?? '-',
+                'kabagName' => $atasan?->approver?->name ?? '-',
+                'kabagDate' => $atasan?->acted_at?->format('d-m-Y') ?? '-',
                 'hrdName' => $hrd?->approver?->name ?? $last?->approver?->name ?? '-',
                 'hrdDate' => ($hrd?->acted_at ?? $last?->acted_at)?->format('d-m-Y') ?? '-',
             ]);
@@ -131,10 +292,13 @@ class LeaveController extends Controller
     {
         $query = LeaveRequest::with(['employee', 'leaveType', 'approvals']);
 
+        $isAtasan = $this->punyaBawahan($request);
         if (!$this->canViewAll($request)) {
-            $query->where('employee_id', $this->ownEmployeeId($request));
+            // Atasan langsung melihat pengajuan dirinya + bawahannya.
+            $bawahanIds = $isAtasan ? $this->bawahanIds($request) : [];
+            $query->whereIn('employee_id', array_merge([$this->ownEmployeeId($request)], $bawahanIds));
         } else {
-            if ($unitId = $this->kabagUnitScope($request)) {
+            if ($unitId = $this->kabagUnitId($request)) {
                 $query->whereHas('employee', fn ($q) => $q->where('organizational_unit_id', $unitId));
             }
             if ($request->employee_id) {
@@ -142,14 +306,52 @@ class LeaveController extends Controller
             }
         }
 
-        if ($request->level == 1) {
-            $query->where('status', 'Pending');
-        } elseif ($request->level == 2) {
-            $query->where('status', 'Disetujui Kepala Bagian');
+        // Antrean "menunggu persetujuan saya": status menunggu + tahap untuk peran ini.
+        // Atasan/Kabag/Direktur → tahap sendiri; HRD → semua tahap yang berujung ke HRD.
+        if ($request->has('level') && $request->level !== '' && $request->level !== 'all') {
+            $tahapPelaku = $this->tahapUntukPelaku($request);
+            $bisaHrd = in_array(self::TAHAP_HRD, $tahapPelaku, true);
+            $statusMenunggu = [];
+            if ($bisaHrd) {
+                $statusMenunggu = ['Pending', 'Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur'];
+            } elseif ($tahapPelaku) {
+                $statusMenunggu = ['Pending'];
+            }
+            if ($tahapPelaku) {
+                $query->whereIn('status', $statusMenunggu);
+                // Selain HRD, saring tahap yang benar-benar menuju meja pelaku.
+                // Kandidat diambil dari $query yang sudah dipersempit (scope unit/diri +
+                // status menunggu) — bukan seluruh tabel leave_requests.
+                // shortcut: tahap menunggu bergantung pada role pengaju (relasi user.roles),
+                // jadi saring di memori atas kandidat kecil ini; pindahkan ke SQL bila
+                // jumlah cuti Pending per unit sudah besar.
+                if (!$bisaHrd) {
+                    $ids = (clone $query)->get()
+                        ->filter(fn ($l) => collect($tahapPelaku)->contains(fn ($t) => $this->bolehBertindakDiTahap($request, $l, $t)))
+                        ->pluck('id');
+                    $query->whereIn('id', $ids);
+                }
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
 
         if ($request->status) {
             $query->where('status', $request->status);
+        }
+
+        // Tab Cuti/Izin: pisahkan berdasarkan kategori tipe cuti. Additive —
+        // tanpa param 'category', perilaku lama tidak berubah.
+        if ($request->category === 'izin') {
+            $query->whereHas('leaveType', fn ($q) => $q->whereIn('code', self::KODE_IZIN));
+        } elseif ($request->category === 'cuti') {
+            $query->whereHas('leaveType', fn ($q) => $q->whereNotIn('code', self::KODE_IZIN));
+        }
+
+        // Halaman Cuti/Izin hanya menampilkan data yang sudah tuntas (disetujui
+        // final HRD). Additive — tanpa param 'only', perilaku lama tidak berubah.
+        if ($request->only === 'approved') {
+            $query->where('status', 'Disetujui HRD');
         }
 
         if ($request->search) {
@@ -188,12 +390,21 @@ class LeaveController extends Controller
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['nullable', 'string'],
-            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'attachment' => ['nullable', 'file', 'max:51200', 'mimes:pdf,jpg,jpeg,png'],
             'emergency_address' => ['nullable', 'string', 'max:255'],
             'emergency_contact' => ['nullable', 'string', 'max:50'],
             'is_emergency' => ['nullable', 'boolean'],
             'emergency_reason' => ['nullable', 'string'],
         ]);
+
+        // Guard: Dosen tidak punya fitur Cuti — hanya boleh mengajukan Izin.
+        // Ditegakkan di backend agar tidak bisa ditembus lewat API.
+        if ($request->user()->hasRole('DOSEN')) {
+            $tipeDiajukan = \App\Models\LeaveType::find($request->leave_type_id);
+            if ($tipeDiajukan && !in_array($tipeDiajukan->code, self::KODE_IZIN, true)) {
+                return response()->json(['success' => false, 'message' => 'Dosen hanya dapat mengajukan Izin, bukan Cuti.'], 403);
+            }
+        }
 
         $isEmergency = $request->boolean('is_emergency');
         $daysUntilStart = Carbon::today()->diffInDays(Carbon::parse($request->start_date), false);
@@ -207,6 +418,17 @@ class LeaveController extends Controller
         $emp = \App\Models\Employee::find($request->employee_id ?? $request->user()->employee_id);
         $totalDays = \App\Services\WorkingDayService::count($request->start_date, $request->end_date, $emp?->organizational_unit_id);
         if ($totalDays < 1) return response()->json(['success' => false, 'message' => 'Total hari kerja 0. Rentang hanya berisi akhir pekan/libur.'], 400);
+
+        // Tolak rentang yang tumpang tindih dengan pengajuan yang masih hidup
+        // (belum ditolak/dibatalkan/dihapus) untuk pegawai yang sama.
+        $tumpangTindih = LeaveRequest::where('employee_id', $request->employee_id)
+            ->whereNotIn('status', ['Cancelled', 'Ditolak Atasan Langsung', 'Ditolak Kepala Bagian', 'Ditolak Direktur', 'Ditolak HRD'])
+            ->where('start_date', '<=', $request->end_date)
+            ->where('end_date', '>=', $request->start_date)
+            ->exists();
+        if ($tumpangTindih) {
+            return response()->json(['success' => false, 'message' => 'Rentang tanggal tumpang tindih dengan pengajuan cuti/izin lain yang masih aktif.'], 400);
+        }
 
         // Saldo cuti tidak lagi memblokir pengajuan. Perhitungan/pemotongan
         // diserahkan ke HRD secara manual (lihat leave-balances/adjust).
@@ -261,38 +483,73 @@ class LeaveController extends Controller
         return response()->json(['success' => true, 'data' => $leave]);
     }
 
-    // Kebutuhan §1.5: Kabag dapat notifikasi saat ada pengajuan baru dari bawahannya.
-    // Scope Kabag per unit; kalau pengaju tidak punya unit, kabari semua Kabag.
+    // Kirim notifikasi "menunggu persetujuan Anda" ke meja yang benar:
+    // atasan langsung bila ada; jika tidak, alur lama (Kabag scope unit /
+    // semua Direktur / semua HRD). Bila tahap awal null (pengaju tanpa
+    // penyetuju), tidak ada notifikasi — pengajuan sengaja dibiarkan tertahan.
     private function notifyApprovers(LeaveRequest $leave): void
+    {
+        $tahap = $this->tahapMenungguStatus($leave);
+        if (!$tahap) {
+            return; // tertahan: tidak ada meja yang dituju
+        }
+        if ($tahap === self::TAHAP_SUPERVISOR) {
+            $this->notifySupervisor($leave);
+        } elseif ($tahap === self::TAHAP_HRD) {
+            $this->notifyRole($leave, 'HRD');
+        } else {
+            $this->notifyRole($leave, $tahap, $tahap === self::TAHAP_KABAG);
+        }
+    }
+
+    // Kabari atasan langsung pengaju (satu orang spesifik).
+    private function notifySupervisor(LeaveRequest $leave): void
+    {
+        $leave->loadMissing('employee');
+        $atasan = Employee::with('user')->find($leave->employee?->supervisor_id);
+        $penerima = $atasan?->user;
+        if (!$penerima || $penerima->id === ($leave->employee->user?->id)) {
+            return;
+        }
+        $this->notifyUser($leave, $penerima, self::TAHAP_SUPERVISOR);
+    }
+
+    // Kabari semua user pemegang role tertentu. Untuk Kabag, hormati scope unit.
+    private function notifyRole(LeaveRequest $leave, string $roleCode, bool $scopeUnit = false): void
     {
         $unitId = $leave->employee->organizational_unit_id ?? null;
 
-        $kabags = \App\Models\User::whereHas('roles', fn ($q) => $q->where('code', 'KABAG'))
+        $users = \App\Models\User::whereHas('roles', fn ($q) => $q->where('code', $roleCode))
             ->with('employee')
             ->get()
-            ->filter(function ($u) use ($unitId, $leave) {
+            ->filter(function ($u) use ($unitId, $leave, $scopeUnit) {
                 if ($u->employee_id === $leave->employee_id) {
                     return false; // jangan kabari dirinya sendiri
                 }
-                if (!$unitId || !$u->employee?->organizational_unit_id) {
-                    return true; // fallback global bila unit belum terisi
+                if (!$scopeUnit || !$unitId || !$u->employee?->organizational_unit_id) {
+                    return true; // tanpa scope unit, atau unit belum terisi → semua
                 }
                 return (int) $u->employee->organizational_unit_id === (int) $unitId;
             });
 
-        foreach ($kabags as $kabag) {
-            $notification = Notification::create([
-                'id' => (string) \Illuminate\Support\Str::uuid(),
-                'user_id' => $kabag->id,
-                'type' => 'leave_submitted',
-                'title' => 'Pengajuan Cuti Baru',
-                'message' => ($leave->employee->nama_lengkap ?? 'Pegawai') . ' mengajukan cuti dan menunggu persetujuan Anda.',
-                'data' => ['leave_id' => $leave->id],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            \App\Events\NotificationSent::dispatch($notification);
+        foreach ($users as $penerima) {
+            $this->notifyUser($leave, $penerima, $roleCode);
         }
+    }
+
+    private function notifyUser(LeaveRequest $leave, \App\Models\User $penerima, string $tahap): void
+    {
+        $notification = Notification::create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'user_id' => $penerima->id,
+            'type' => 'leave_submitted',
+            'title' => 'Pengajuan Cuti Baru',
+            'message' => ($leave->employee->nama_lengkap ?? 'Pegawai') . ' mengajukan cuti dan menunggu persetujuan Anda.',
+            'data' => ['leave_id' => $leave->id, 'tahap' => $tahap],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        \App\Events\NotificationSent::dispatch($notification);
     }
 
     public function show(Request $request, LeaveRequest $leave)
@@ -300,17 +557,17 @@ class LeaveController extends Controller
         if (!$this->canSeeLeave($request, $leave)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
-        return response()->json(['success' => true, 'data' => $leave->load(['employee', 'leaveType', 'approvals', 'attachments'])]);
+        $leave->load(['employee', 'leaveType', 'approvals.approver', 'attachments']);
+        $leave->setAttribute('tahap_menunggu', $this->tahapMenungguStatus($leave));
+        return response()->json(['success' => true, 'data' => $leave]);
     }
 
     public function approve(Request $request, LeaveRequest $leave)
     {
-        // Only Kabag can approve at level 1
         $user = $request->user();
-        $role = $user->roles->first()->code ?? null;
-        $level = $role === 'KABAG' ? 1 : ($role === 'HRD' ? 2 : null);
+        $tahapPelaku = $this->tahapUntukPelaku($request);
 
-        if (!$level) {
+        if (!$tahapPelaku) {
             return response()->json(['success' => false, 'message' => 'Anda tidak memiliki kewenangan.'], 403);
         }
 
@@ -318,22 +575,31 @@ class LeaveController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
 
-        // Check if already approved at this level
+        $tahapMenunggu = $this->tahapMenungguStatus($leave);
+        if (!$tahapMenunggu) {
+            return response()->json(['success' => false, 'message' => 'Pengajuan ini tidak sedang menunggu persetujuan.'], 400);
+        }
+
+        // HRD selalu boleh bertindak di tahap HRD; atasan/Kabag/Direktur hanya di
+        // tahapnya sendiri, dan hanya untuk pengajuan yang memang menuju mejanya.
+        if (!in_array($tahapMenunggu, $tahapPelaku, true) || !$this->bolehBertindakDiTahap($request, $leave, $tahapMenunggu)) {
+            if ($tahapMenunggu === self::TAHAP_HRD) {
+                return response()->json(['success' => false, 'message' => 'Pengajuan ini belum sampai ke meja HRD.'], 400);
+            }
+            return response()->json(['success' => false, 'message' => 'Pengajuan ini menunggu tahap lain.'], 400);
+        }
+
+        // Nomor tingkat persetujuan (untuk riwayat): 1 = penyetuju pertama
+        // (atasan langsung/Kabag/Direktur), 2 = HRD.
+        $level = $tahapMenunggu === self::TAHAP_HRD ? 2 : 1;
+
         if ($leave->approvals()->where('approval_level', $level)->exists()) {
-            return response()->json(['success' => false, 'message' => 'Sudah disetujui pada level ini.'], 400);
+            return response()->json(['success' => false, 'message' => 'Sudah disetujui pada tahap ini.'], 400);
         }
 
-        if ($level === 1 && $leave->status !== 'Pending') {
-            return response()->json(['success' => false, 'message' => 'Hanya pengajuan Pending yang dapat disetujui Kepala Bagian.'], 400);
-        }
-        if ($level === 2 && $leave->status !== 'Disetujui Kepala Bagian') {
-            return response()->json(['success' => false, 'message' => 'Hanya pengajuan yang sudah Disetujui Kepala Bagian yang dapat difinalisasi HRD.'], 400);
-        }
-
-        // If Kabag approves, status becomes 'Disetujui Kepala Bagian' and requires HRD
-        // If HRD approves, finalize
-        DB::transaction(function () use ($leave, $user, $level, $request) {
-            $approval = LeaveApproval::create([
+        try {
+        DB::transaction(function () use ($leave, $user, $tahapMenunggu, $level, $request) {
+            LeaveApproval::create([
                 'leave_request_id' => $leave->id,
                 'approver_id' => $user->id,
                 'approval_level' => $level,
@@ -342,65 +608,83 @@ class LeaveController extends Controller
                 'acted_at' => now(),
             ]);
 
-            if ($level === 1) {
-                $leave->status = 'Disetujui Kepala Bagian';
-            } else if ($level === 2) {
-                // Finalize: update leave balance
+            if ($tahapMenunggu === self::TAHAP_HRD) {
+                // Finalisasi: potong saldo + arsip PDF "SK Cuti".
+                // Cuti Sakit ber-surat dokter tidak memotong saldo.
                 $leave->status = 'Disetujui HRD';
                 $leave->finalized_at = now();
 
-                // Deduct balance if leave type deducts; sick leave with medical certificate does not deduct
                 $leaveType = $leave->leaveType;
-                $isSickCertified = $leaveType->code === 'SICK' && $leave->attachments()->exists();
+                $isSickCertified = $leaveType->code === 'SICK'
+                    && $leave->attachments()->where('verification_status', 'VERIFIED')->exists();
                 if ($leaveType->is_leave_balance_deducted && !$isSickCertified) {
+                    // Kebijakan: potong saldo pada tahun tanggal MULAI cuti (cuti lintas tahun tetap
+                    // memotong satu baris saldo tahun start_date), bukan tahun persetujuan HRD.
+                    $periodYear = $leave->start_date->year;
+                    // lockForUpdate: kunci baris saldo selama transaksi agar dua approval
+                    // bersamaan tidak saling menimpa (lost update).
                     $balance = LeaveBalance::where('employee_id', $leave->employee_id)
                         ->where('leave_type_id', $leave->leave_type_id)
-                        ->where('period_year', date('Y'))
+                        ->where('period_year', $periodYear)
+                        ->lockForUpdate()
                         ->first();
-                    if ($balance) {
-                        $balanceBefore = $balance->remaining_days;
-                        $balance->used_days += $leave->total_days;
-                        $balance->remaining_days = $balance->entitled_days + $balance->adjustment_days - $balance->used_days;
-                        $balance->save();
-
-                        LeaveBalanceTransaction::create([
-                            'leave_balance_id' => $balance->id,
-                            'employee_id' => $leave->employee_id,
-                            'leave_request_id' => $leave->id,
-                            'transaction_type' => 'DEDUCT',
-                            'amount' => -$leave->total_days,
-                            'balance_before' => $balanceBefore,
-                            'balance_after' => $balance->remaining_days,
-                            'reason' => 'Cuti disetujui HRD',
-                            'created_by' => $user->id,
-                        ]);
+                    if (!$balance) {
+                        // Jangan finalkan cuti tanpa memotong saldo. Batalkan transaksi.
+                        throw new \RuntimeException("Saldo cuti tahun {$periodYear} belum dibuat. Buat saldo lebih dulu lewat menu Saldo Cuti.");
                     }
+
+                    $balanceBefore = $balance->remaining_days;
+                    $balance->used_days += $leave->total_days;
+                    // Jangan biarkan saldo negatif walau pengajuan melebihi jatah.
+                    $balance->remaining_days = max(0, $balance->entitled_days + $balance->adjustment_days - $balance->used_days);
+                    $balance->save();
+
+                    LeaveBalanceTransaction::create([
+                        'leave_balance_id' => $balance->id,
+                        'employee_id' => $leave->employee_id,
+                        'leave_request_id' => $leave->id,
+                        'transaction_type' => 'DEDUCT',
+                        'amount' => -$leave->total_days,
+                        'balance_before' => $balanceBefore,
+                        'balance_after' => $balance->remaining_days,
+                        'reason' => 'Cuti disetujui HRD',
+                        'created_by' => $user->id,
+                    ]);
                 }
+            } else {
+                // Kabag / Direktur menyetujui → lanjut ke HRD.
+                $leave->status = $this->labelStatusTahap($tahapMenunggu, true);
             }
             $leave->save();
 
-            $statusText = $level === 1 ? 'Disetujui Kepala Bagian' : 'Disetujui HRD';
-            if ($level === 2) {
+            $statusText = $leave->status;
+            $tahapBerikut = $this->tahapMenungguStatus($leave);
+            if ($tahapMenunggu === self::TAHAP_HRD) {
                 $this->archiveDecision($leave, $statusText);
             }
             $leaveTypeName = $leave->leaveType->name ?? 'Cuti';
-            $msg = "Pengajuan cuti {$leaveTypeName} Anda telah disetujui oleh {$user->name}" . ($level === 1 ? ' (menunggu HRD)' : '');
+            $msg = "Pengajuan cuti {$leaveTypeName} Anda telah disetujui oleh {$user->name}"
+                . ($tahapBerikut === self::TAHAP_HRD ? ' (menunggu HRD)' : '');
 
-            // Audit log
             AuditLog::create([
                 'user_id' => $user->id,
                 'action' => 'APPROVE_LEAVE',
                 'auditable_type' => 'App\\Models\\LeaveRequest',
                 'auditable_id' => $leave->id,
                 'old_values' => null,
-                'new_values' => ['status' => $statusText],
+                'new_values' => ['status' => $statusText, 'tahap' => $tahapMenunggu],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'created_at' => now(),
             ]);
 
             $this->notifyLeaveStatus($leave, $user, $statusText, $msg);
+            // Kabari meja berikutnya (HRD) bila masih perlu dilanjutkan.
+            $this->notifyApprovers($leave);
         });
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        }
 
         return response()->json(['success' => true, 'message' => 'Pengajuan berhasil disetujui.']);
     }
@@ -410,25 +694,33 @@ class LeaveController extends Controller
         $request->validate(['reason' => 'required|string']);
 
         $user = $request->user();
-        $role = $user->roles->first()->code ?? null;
-        $level = $role === 'KABAG' ? 1 : ($role === 'HRD' ? 2 : null);
+        $tahapPelaku = $this->tahapUntukPelaku($request);
 
-        if (!$level) {
+        if (!$tahapPelaku) {
             return response()->json(['success' => false, 'message' => 'Anda tidak memiliki kewenangan.'], 403);
         }
 
-        // Prevent duplicate rejection
-        if ($leave->approvals()->where('approval_level', $level)->exists()) {
-            return response()->json(['success' => false, 'message' => 'Sudah diproses pada level ini.'], 400);
-        }
-        if (!in_array($leave->status, ['Pending', 'Disetujui Kepala Bagian'])) {
-            return response()->json(['success' => false, 'message' => 'Cuti dengan status ini tidak dapat ditolak.'], 400);
-        }
-        if ($level === 1 && $leave->status !== 'Pending') {
-            return response()->json(['success' => false, 'message' => 'Hanya pengajuan Pending yang dapat ditolak Kepala Bagian.'], 400);
+        $tahapMenunggu = $this->tahapMenungguStatus($leave);
+        if (!$tahapMenunggu) {
+            return response()->json(['success' => false, 'message' => 'Pengajuan ini tidak sedang menunggu persetujuan.'], 400);
         }
 
-        DB::transaction(function () use ($leave, $user, $level, $request) {
+        if (!in_array($tahapMenunggu, $tahapPelaku, true) || !$this->bolehBertindakDiTahap($request, $leave, $tahapMenunggu)) {
+            if ($tahapMenunggu === self::TAHAP_HRD) {
+                return response()->json(['success' => false, 'message' => 'Pengajuan ini belum sampai ke meja HRD.'], 400);
+            }
+            return response()->json(['success' => false, 'message' => 'Pengajuan ini menunggu tahap lain.'], 400);
+        }
+
+        // 1 = penyetuju pertama (atasan langsung/Kabag/Direktur), 2 = HRD.
+        $level = $tahapMenunggu === self::TAHAP_HRD ? 2 : 1;
+
+        // Prevent duplicate rejection
+        if ($leave->approvals()->where('approval_level', $level)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Sudah diproses pada tahap ini.'], 400);
+        }
+
+        DB::transaction(function () use ($leave, $user, $tahapMenunggu, $level, $request) {
             LeaveApproval::create([
                 'leave_request_id' => $leave->id,
                 'approver_id' => $user->id,
@@ -438,18 +730,19 @@ class LeaveController extends Controller
                 'acted_at' => now(),
             ]);
 
-            $statusText = $level === 1 ? 'Ditolak Kepala Bagian' : 'Ditolak HRD';
+            // Ditolak di tahap mana pun = berhenti total. Bila yang menolak adalah
+            // Kabag/Direktur, HRD tidak diberi tahu sama sekali.
+            $statusText = $this->labelStatusTahap($tahapMenunggu, false);
             $leave->status = $statusText;
             $leave->save();
 
-            // Audit log
             AuditLog::create([
                 'user_id' => $user->id,
                 'action' => 'REJECT_LEAVE',
                 'auditable_type' => 'App\\Models\\LeaveRequest',
                 'auditable_id' => $leave->id,
                 'old_values' => null,
-                'new_values' => ['status' => $statusText, 'reason' => $request->reason],
+                'new_values' => ['status' => $statusText, 'reason' => $request->reason, 'tahap' => $tahapMenunggu],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'created_at' => now(),
@@ -474,7 +767,7 @@ class LeaveController extends Controller
         if (!$canManage && $wasFinal) {
             return response()->json(['success' => false, 'message' => 'Cuti yang sudah disetujui HRD hanya dapat dibatalkan oleh pengelola (hak ubah cuti).'], 400);
         }
-        if (!in_array($oldStatus, ['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'])) {
+        if (!in_array($oldStatus, ['Pending', 'Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur', 'Disetujui HRD'])) {
             return response()->json(['success' => false, 'message' => 'Status tidak dapat dibatalkan.'], 400);
         }
         DB::transaction(function () use ($leave, $oldStatus, $wasFinal, $request) {
@@ -484,10 +777,12 @@ class LeaveController extends Controller
 
             if ($wasFinal) {
                 $this->removeDecisionArchive($leave);
+                // Refund memakai baris saldo yang sama dengan saat pemotongan
+                // (yang pada approve() dikunci ke tahun start_date cuti).
                 $deduct = LeaveBalanceTransaction::where('leave_request_id', $leave->id)
                     ->where('transaction_type', 'DEDUCT')->first();
                 if ($deduct) {
-                    $balance = LeaveBalance::find($deduct->leave_balance_id);
+                    $balance = LeaveBalance::whereKey($deduct->leave_balance_id)->lockForUpdate()->first();
                     if ($balance) {
                         $before = $balance->remaining_days;
                         $balance->used_days = max(0, $balance->used_days - $leave->total_days);
@@ -540,24 +835,42 @@ class LeaveController extends Controller
         ]);
 
         $wasFinal = $leave->status === 'Disetujui HRD';
+        if (!in_array($leave->status, ['Pending', 'Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur', 'Disetujui HRD', 'Ditolak Atasan Langsung', 'Ditolak Kepala Bagian', 'Ditolak Direktur', 'Ditolak HRD', 'Cancelled'], true)) {
+            return response()->json(['success' => false, 'message' => 'Status tidak dapat dihapus.'], 400);
+        }
         $old = $leave->only(['employee_id', 'leave_type_id', 'start_date', 'end_date', 'total_days', 'status']);
         $leaveId = $leave->id;
 
         DB::transaction(function () use ($leave, $leaveId, $old, $wasFinal, $user, $request, $validated) {
             if ($wasFinal) {
+                // Refund memakai baris saldo yang sama dengan saat pemotongan
+                // (yang pada approve() dikunci ke tahun start_date cuti).
                 $deduct = LeaveBalanceTransaction::where('leave_request_id', $leaveId)
                     ->where('transaction_type', 'DEDUCT')->first();
                 if ($deduct) {
-                    $balance = LeaveBalance::find($deduct->leave_balance_id);
+                    $balance = LeaveBalance::whereKey($deduct->leave_balance_id)->lockForUpdate()->first();
                     if ($balance) {
+                        $before = $balance->remaining_days;
                         $balance->used_days = max(0, $balance->used_days - $leave->total_days);
                         $balance->remaining_days = $balance->entitled_days + $balance->adjustment_days - $balance->used_days;
                         $balance->save();
+
+                        // Catat pembalikan sebagai baris ledger baru; baris DEDUCT lama
+                        // tetap tersimpan agar mutasi saldo dapat ditelusuri.
+                        LeaveBalanceTransaction::create([
+                            'leave_balance_id' => $balance->id,
+                            'employee_id' => $leave->employee_id,
+                            'leave_request_id' => $leaveId,
+                            'transaction_type' => 'REVERSAL',
+                            'amount' => $leave->total_days,
+                            'balance_before' => $before,
+                            'balance_after' => $balance->remaining_days,
+                            'reason' => 'Pengajuan cuti dihapus: ' . $validated['reason'],
+                            'created_by' => $user->id,
+                        ]);
                     }
                 }
             }
-
-            LeaveBalanceTransaction::where('leave_request_id', $leaveId)->delete();
 
             $this->removeDecisionArchive($leave);
             foreach ($leave->attachments as $attachment) {
@@ -589,7 +902,8 @@ class LeaveController extends Controller
     public function downloadAttachment(Request $request, \App\Models\LeaveAttachment $attachment)
     {
         $leave = $attachment->leaveRequest;
-        if (!$this->canViewAll($request) && (!$leave || $leave->employee_id !== $this->ownEmployeeId($request))) {
+        // Pakai aturan yang sama dengan show(): KABAG tetap dibatasi unitnya.
+        if (!$leave || !$this->canSeeLeave($request, $leave)) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
         if (!\Illuminate\Support\Facades\Storage::disk($attachment->storage_disk)->exists($attachment->storage_path)) {
@@ -600,6 +914,11 @@ class LeaveController extends Controller
 
     public function verifyAttachment(Request $request, \App\Models\LeaveAttachment $attachment)
     {
+        $leave = $attachment->leaveRequest;
+        // Hanya penyetuju yang berhak atas pengajuan ini (KABAG dibatasi unitnya).
+        if (!$leave || !$this->canSeeLeave($request, $leave)) {
+            return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
+        }
         $validated = $request->validate([
             'status' => ['required', 'in:VERIFIED,REJECTED'],
             'note' => ['nullable', 'string'],

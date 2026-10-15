@@ -19,14 +19,14 @@ class EmployeeNikUniqueTest extends TestCase
         parent::setUp();
 
         $employee = Employee::create([
-            'nik' => '1234567890123457',
+            'nik' => '447199000',
             'nama_lengkap' => 'HRD Contoh',
             'email' => 'hrd@example.com',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 
         $user = User::create([
-            'nik' => '1234567890123457',
+            'nik' => '447199000',
             'name' => 'HRD',
             'email' => 'hrd@example.com',
             'password' => 'password',
@@ -43,20 +43,20 @@ class EmployeeNikUniqueTest extends TestCase
     public function test_update_nik_duplikat_users_ditolak(): void
     {
         $target = Employee::create([
-            'nik' => '1234567890123456',
+            'nik' => '447199001',
             'nama_lengkap' => 'Target',
             'email' => 'target@example.com',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
         User::create([
-            'nik' => '8888888888888888',
+            'nik' => '888888888',
             'name' => 'Yatim',
             'email' => 'yatim@example.com',
             'password' => 'password',
         ]);
 
         $this->actingAs($this->hrdUser)->putJson("/api/employees/{$target->id}", [
-            'nik' => '8888888888888888',
+            'nik' => '888888888',
             'nama_lengkap' => 'Target',
             'email' => 'target@example.com',
         ])->assertStatus(422);
@@ -65,13 +65,13 @@ class EmployeeNikUniqueTest extends TestCase
     public function test_update_nik_milik_sendiri_lolos(): void
     {
         $target = Employee::create([
-            'nik' => '1234567890123456',
+            'nik' => '447199001',
             'nama_lengkap' => 'Target',
             'email' => 'target@example.com',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
         $user = User::create([
-            'nik' => '1234567890123456',
+            'nik' => '447199001',
             'name' => 'Target',
             'email' => 'target@example.com',
             'password' => 'password',
@@ -81,7 +81,7 @@ class EmployeeNikUniqueTest extends TestCase
         $target->save();
 
         $this->actingAs($this->hrdUser)->putJson("/api/employees/{$target->id}", [
-            'nik' => '1234567890123456',
+            'nik' => '447199001',
             'nama_lengkap' => 'Target Ubah',
             'email' => 'target@example.com',
         ])->assertOk();

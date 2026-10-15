@@ -25,8 +25,9 @@ export function ensureEcho(token: string | null) {
         key: import.meta.env.VITE_REVERB_APP_KEY || 'asm-hris-key',
         wsHost: import.meta.env.VITE_REVERB_HOST || 'localhost',
         wsPort: Number(import.meta.env.VITE_REVERB_PORT) || 8080,
-        wssPort: Number(import.meta.env.VITE_REVERB_PORT) || 8080,
-        forceTLS: false,
+        wssPort: Number(import.meta.env.VITE_REVERB_WSS_PORT) || 443,
+        // TLS otomatis mengikuti protokol halaman: HTTPS → wss, HTTP lokal → ws.
+        forceTLS: window.location.protocol === 'https:',
         enabledTransports: ['ws', 'wss'],
         authEndpoint: '/api/broadcasting/auth',
         auth: {

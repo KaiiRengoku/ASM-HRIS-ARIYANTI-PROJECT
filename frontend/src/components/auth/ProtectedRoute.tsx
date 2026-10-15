@@ -5,29 +5,32 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 export default function ProtectedRoute({ roles, permissions, children }: { roles?: string[]; permissions?: string[]; children?: React.ReactNode }) {
-  const { isAuthenticated, user, token, setAuth, logout, hasRole, hasPermission } = useAuthStore();
+  const { isAuthenticated, token, setAuth, logout, hasRole, hasPermission } = useAuthStore();
   const location = useLocation();
-  const [isVerifying, setIsVerifying] = useState(true);
+  // Hanya guard akar (tanpa roles/permissions) yang memverifikasi token ke server,
+  // sekali per muat halaman, agar role/izin yang dicabut di server tidak terus
+  // ditampilkan dari state persist. Guard per-route melewatinya supaya tidak ada
+  // GET /user tiap navigasi.
+  const isRootGuard = !roles && !permissions;
+  const [isVerifying, setIsVerifying] = useState(isRootGuard && !!token);
 
   useEffect(() => {
-    const verifyAuth = async () => {
-      if (token && !user) {
-        try {
-          const response = await getUser();
-          if (response.success) {
-            setAuth(response.data.user, token);
-          } else {
-            logout();
-          }
-        } catch {
+    if (!isRootGuard || !token) return;
+    (async () => {
+      try {
+        const response = await getUser();
+        if (response.success) {
+          setAuth(response.data.user, token);
+        } else {
           logout();
         }
+      } catch {
+        logout();
+      } finally {
+        setIsVerifying(false);
       }
-      setIsVerifying(false);
-    };
-
-    verifyAuth();
-  }, [token, user, setAuth, logout]);
+    })();
+  }, [isRootGuard, token, setAuth, logout]);
 
   if (isVerifying) {
     return (

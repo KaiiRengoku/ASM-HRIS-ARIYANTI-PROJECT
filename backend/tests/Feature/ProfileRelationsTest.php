@@ -24,7 +24,6 @@ class ProfileRelationsTest extends TestCase
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 
-        $this->assertTrue($employee->educations()->exists() || true);
         $this->assertInstanceOf(HasMany::class, $employee->educations());
         $this->assertInstanceOf(HasOne::class, $employee->functional());
         $this->assertInstanceOf(HasMany::class, $employee->teachingAssignments());

@@ -9,11 +9,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { extractErrorMessage } from '@/services/apiError';
 
 const fetchLeave = async (id: number) => {
     const response = await api.get(`/leaves/${id}`);
     return response.data.data;
 };
+
+// Tanggal bisa null (mis. approval yang belum bertindak) → jangan render "Invalid Date".
+const formatWaktu = (value?: string | null) => (value ? new Date(value).toLocaleString() : '-');
 
 export default function LeaveDetailPage() {
     const { id } = useParams();
@@ -27,15 +31,17 @@ export default function LeaveDetailPage() {
     });
     const { hasPermission } = useAuthStore();
     const canDelete = hasPermission('leave.delete');
+    const canCancel = hasPermission('leave.cancel');
     const canVerify = hasPermission('leave.approve');
     const queryClient = useQueryClient();
     const cancelMutation = useMutation({
         mutationFn: async () => (await api.post(`/leaves/${id}/cancel`)).data,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['leave', id] });
+            queryClient.invalidateQueries({ queryKey: ['leaves'] });
             toast({ title: 'Berhasil', description: 'Pengajuan dibatalkan.' });
         },
-        onError: (e: any) => toast({ title: 'Gagal', description: e.response?.data?.message || 'Terjadi kesalahan.', variant: 'destructive' }),
+        onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e), variant: 'destructive' }),
     });
     const downloadAttachment = async (att: any) => {
         const res = await api.get(`/leave-attachments/${att.id}/download`, { responseType: 'blob' });
@@ -46,6 +52,7 @@ export default function LeaveDetailPage() {
         document.body.appendChild(link);
         link.click();
         link.remove();
+        window.URL.revokeObjectURL(url);
     };
     const verifyMutation = useMutation({
         mutationFn: async ({ attId, status }: { attId: number; status: string }) =>
@@ -54,7 +61,7 @@ export default function LeaveDetailPage() {
             queryClient.invalidateQueries({ queryKey: ['leave', id] });
             toast({ title: 'Berhasil', description: 'Lampiran diverifikasi.' });
         },
-        onError: () => toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' }),
+        onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e), variant: 'destructive' }),
     });
     const deleteMutation = useMutation({
         mutationFn: async (reason: string) => (await api.delete(`/leaves/${id}`, { data: { reason } })).data,
@@ -62,7 +69,7 @@ export default function LeaveDetailPage() {
             toast({ title: 'Berhasil', description: 'Histori cuti dihapus permanen.' });
             navigate('/cuti');
         },
-        onError: (e: any) => toast({ title: 'Gagal', description: e.response?.data?.message || 'Terjadi kesalahan.', variant: 'destructive' }),
+        onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e), variant: 'destructive' }),
     });
 
     if (isLoading) return <div className="p-6">Memuat detail...</div>;
@@ -76,7 +83,7 @@ export default function LeaveDetailPage() {
           <Link to="/cuti">
             <Button variant="outline">Kembali</Button>
           </Link>
-          {['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'].includes(leave.status) && (
+          {canCancel && ['Pending', 'Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur', 'Disetujui HRD'].includes(leave.status) && (
             <Button variant="outline" onClick={() => setCancelOpen(true)}>Batalkan</Button>
           )}
           {canDelete && (
@@ -130,14 +137,24 @@ export default function LeaveDetailPage() {
                     <div><span className="font-medium">Tanggal:</span> {leave.start_date} s.d {leave.end_date}</div>
                     <div><span className="font-medium">Total Hari:</span> {leave.total_days}</div>
                     <div><span className="font-medium">Status:</span> {leave.status}</div>
+                    {leave.tahap_menunggu && (
+                        <div>
+                            <span className="font-medium">Menunggu:</span>{' '}
+                            {leave.tahap_menunggu === 'KABAG'
+                                ? 'Kepala Bagian'
+                                : leave.tahap_menunggu === 'DIREKTUR'
+                                    ? 'Direktur'
+                                    : 'HRD'}
+                        </div>
+                    )}
                     <div><span className="font-medium">Alasan:</span> {leave.reason || '-'}</div>
-                    <div><span className="font-medium">Diajukan:</span> {new Date(leave.submitted_at).toLocaleString()}</div>
+                    <div><span className="font-medium">Diajukan:</span> {formatWaktu(leave.submitted_at)}</div>
                     {leave.attachments?.length > 0 && (
                         <div>
                             <span className="font-medium">Lampiran:</span>
                             {leave.attachments.map((att: any) => (
-                                <div key={att.id} className="flex items-center gap-2 text-sm">
-                                    <button onClick={() => downloadAttachment(att)} className="text-primary underline">
+                                <div key={att.id} className="flex flex-wrap items-center gap-2 text-sm">
+                                    <button onClick={() => downloadAttachment(att)} className="min-w-0 max-w-full truncate text-left text-primary underline" title={att.file_name}>
                                         {att.file_name}
                                     </button>
                                     <span className="text-muted-foreground">({att.verification_status || 'PENDING'})</span>
@@ -156,7 +173,12 @@ export default function LeaveDetailPage() {
                             <span className="font-medium">Riwayat Approval:</span>
                             {leave.approvals.map((app: any) => (
                                 <div key={app.id} className="text-sm">
-                                    {app.status} oleh {app.approver?.name || 'User'} pada {new Date(app.acted_at).toLocaleString()}
+                                    {app.approval_level === 1
+                                        ? 'Tahap Penyetuju Pertama'
+                                        : app.approval_level === 2
+                                            ? 'Tahap HRD'
+                                            : `Tahap ${app.approval_level}`}{' '}
+                                    — {app.status} oleh {app.approver?.name || 'User'} pada {formatWaktu(app.acted_at)}
                                     {app.reason && ` (Alasan: ${app.reason})`}
                                 </div>
                             ))}

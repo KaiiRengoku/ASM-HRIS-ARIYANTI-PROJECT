@@ -17,7 +17,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    // Origin frontend, dipisah koma. Set CORS_ALLOWED_ORIGINS di .env produksi,
+    // jangan pakai '*' (supports_credentials=true membuat '*' tidak sah).
+    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173'
+    ))))),
 
     'allowed_origins_patterns' => [],
 

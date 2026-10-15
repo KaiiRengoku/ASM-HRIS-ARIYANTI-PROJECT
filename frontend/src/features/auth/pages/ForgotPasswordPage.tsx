@@ -11,7 +11,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { forgotPassword } from "../services/authService";
 
 const forgotSchema = z.object({
-  nik: z.string().length(16, "NIK harus 16 digit"),
+  nik: z.string().regex(/^[0-9]{9}$/, 'Nomor Induk Kepegawaian harus 9 digit angka'),
 });
 
 type ForgotForm = { nik: string };
@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Cek Email Anda</CardTitle>
             <CardDescription>
-              Jika NIK terdaftar, link reset sudah dikirim ke email Anda. Cek inbox atau spam.
+              Jika Nomor Induk Kepegawaian terdaftar, link reset sudah dikirim ke email Anda. Cek inbox atau spam.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -72,18 +72,18 @@ export default function ForgotPasswordPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Lupa Kata Sandi</CardTitle>
           <CardDescription>
-            Masukkan NIK Anda. Kami akan kirim link reset ke email yang terdaftar.
+            Masukkan Nomor Induk Kepegawaian Anda. Kami akan kirim link reset ke email yang terdaftar.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="nik">NIK</Label>
+              <Label htmlFor="nik">Nomor Induk Kepegawaian</Label>
               <Input
                 id="nik"
                 type="text"
-                placeholder="1234567890123456"
-                maxLength={16}
+                placeholder="mis. 447199054"
+                maxLength={9}
                 {...register("nik")}
                 className={errors.nik ? "border-destructive" : ""}
                 disabled={isLoading}

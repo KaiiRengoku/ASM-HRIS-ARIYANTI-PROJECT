@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { api } from '@/services/api';
 import { toast } from '@/components/ui/use-toast';
+import { useAuthStore } from '@/stores/authStore';
 
-const leaveStatuses = ['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD', 'Ditolak Kepala Bagian', 'Ditolak HRD', 'Cancelled'];
+const leaveStatuses = ['Pending', 'Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur', 'Disetujui HRD', 'Ditolak Atasan Langsung', 'Ditolak Kepala Bagian', 'Ditolak Direktur', 'Ditolak HRD', 'Cancelled'];
 
 export default function ReportPage() {
     const [leaveStatus, setLeaveStatus] = useState('');
@@ -20,7 +21,10 @@ export default function ReportPage() {
     const [recapYear, setRecapYear] = useState(String(new Date().getFullYear()));
     const [recapScope, setRecapScope] = useState('all');
     const [recapUnit, setRecapUnit] = useState('');
-
+    const { hasPermission, hasRole } = useAuthStore();
+    const canExportEmployees = hasPermission('employee.export');
+    const canExportLeaves = hasPermission('leave.export');
+    const canViewRecap = ['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'].some((r) => hasRole(r)) && hasPermission('leave.view');
     const { data: recap } = useQuery({
         queryKey: ['leave-recap', recapYear, recapScope, recapUnit],
         queryFn: async () => (await api.get('/reports/leaves/recap', {
@@ -34,11 +38,12 @@ export default function ReportPage() {
     const { data: units } = useQuery({
         queryKey: ['organizational-units'],
         queryFn: async () => (await api.get('/organizational-units')).data.data,
+        enabled: canViewRecap,
     });
     const dosenCuti = (recap as any[] | undefined)
         ?.filter((r) => r.is_dosen)
         .flatMap((r) => (r.riwayat_cuti ?? [])
-            .filter((c: any) => ['Pending', 'Disetujui Kepala Bagian', 'Disetujui HRD'].includes(c.status))
+            .filter((c: any) => ['Pending', 'Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur', 'Disetujui HRD'].includes(c.status))
             .map((c: any) => ({ ...c, nama: r.nama_lengkap })));
 
     const { data: leaveTypes } = useQuery({
@@ -67,6 +72,7 @@ const exportEmployees = async () => {
         document.body.appendChild(link);
         link.click();
         link.remove();
+        window.URL.revokeObjectURL(url);
         toast({ title: 'Berhasil', description: 'Ekspor pegawai berhasil.' });
     } catch {
         toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' });
@@ -83,6 +89,7 @@ const exportLeaves = async () => {
         document.body.appendChild(link);
         link.click();
         link.remove();
+        window.URL.revokeObjectURL(url);
         toast({ title: 'Berhasil', description: 'Ekspor cuti berhasil.' });
     } catch {
         toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' });
@@ -99,6 +106,7 @@ const downloadBlob = async (url: string, filename: string) => {
         document.body.appendChild(link);
         link.click();
         link.remove();
+        window.URL.revokeObjectURL(blobUrl);
         toast({ title: 'Berhasil', description: filename + ' diunduh.' });
     } catch {
         toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' });
@@ -109,6 +117,7 @@ const downloadBlob = async (url: string, filename: string) => {
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">Laporan</h1>
             <p className="text-muted-foreground">Ekspor data dalam format CSV atau PDF</p>
+            {canExportEmployees && (
             <Card>
                 <CardHeader>
                     <CardTitle>Ekspor Data Pegawai</CardTitle>
@@ -118,6 +127,8 @@ const downloadBlob = async (url: string, filename: string) => {
                     <Button variant="outline" onClick={() => downloadBlob('/reports/employees/pdf', `pegawai_${new Date().toISOString().slice(0,10)}.pdf`)}>PDF</Button>
                 </CardContent>
             </Card>
+            )}
+            {canExportLeaves && (
             <Card>
                 <CardHeader>
                     <CardTitle>Ekspor Data Cuti</CardTitle>
@@ -167,6 +178,8 @@ const downloadBlob = async (url: string, filename: string) => {
                     </div>
                 </CardContent>
             </Card>
+            )}
+            {canViewRecap && (
             <Card>
                 <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     <CardTitle>Rekap Sisa Cuti Tahunan per Pegawai</CardTitle>
@@ -192,11 +205,37 @@ const downloadBlob = async (url: string, filename: string) => {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="overflow-x-auto p-0">
+                <CardContent className="p-0">
+                    {/* Mobile: kartu per pegawai — tabel 7 kolom tak muat di layar sempit. */}
+                    <div className="divide-y md:hidden">
+                        {!recap?.length ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">Belum ada data saldo cuti.</p>
+                        ) : (
+                            recap.map((r: any) => (
+                                <div key={r.employee_id} className="space-y-3 p-4">
+                                    <div className="min-w-0">
+                                        <p className="truncate font-medium" title={r.nama_lengkap}>{r.nama_lengkap}</p>
+                                        <p className="font-mono text-xs text-muted-foreground">{r.nik}</p>
+                                    </div>
+                                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                                        <div className="col-span-2 min-w-0">
+                                            <dt className="text-muted-foreground">Jabatan</dt>
+                                            <dd className="truncate" title={r.jabatan || ''}>{r.jabatan || '-'}</dd>
+                                        </div>
+                                        <div><dt className="text-muted-foreground">Hak</dt><dd>{r.entitled_days}</dd></div>
+                                        <div><dt className="text-muted-foreground">Penyesuaian</dt><dd>{r.adjustment_days}</dd></div>
+                                        <div><dt className="text-muted-foreground">Terpakai</dt><dd>{r.used_days}</dd></div>
+                                        <div><dt className="text-muted-foreground">Sisa</dt><dd className="font-bold">{r.remaining_days}</dd></div>
+                                    </dl>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className="hidden md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>NIK</TableHead>
+                                <TableHead>Nomor Induk Kepegawaian</TableHead>
                                 <TableHead>Nama</TableHead>
                                 <TableHead>Jabatan</TableHead>
                                 <TableHead className="whitespace-nowrap">Hak</TableHead>
@@ -225,14 +264,38 @@ const downloadBlob = async (url: string, filename: string) => {
                             )}
                         </TableBody>
                     </Table>
+                    </div>
                 </CardContent>
             </Card>
-            {recapScope === 'akademik' && (
+            )}
+            {canViewRecap && recapScope === 'akademik' && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Rencana Penggantian Dosen Pengajar (Cuti Aktif/Disetujui)</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
+                        {/* Mobile: kartu per dosen cuti. */}
+                        <div className="divide-y md:hidden">
+                            {!dosenCuti?.length ? (
+                                <p className="py-8 text-center text-sm text-muted-foreground">Tidak ada dosen cuti pada tahun ini.</p>
+                            ) : (
+                                dosenCuti.map((c: any) => (
+                                    <div key={c.id} className="space-y-3 p-4">
+                                        <div className="min-w-0">
+                                            <p className="truncate font-medium" title={c.nama}>{c.nama}</p>
+                                            <p className="text-xs text-muted-foreground">{c.jenis}</p>
+                                        </div>
+                                        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                                            <div><dt className="text-muted-foreground">Mulai</dt><dd>{c.start_date}</dd></div>
+                                            <div><dt className="text-muted-foreground">Selesai</dt><dd>{c.end_date}</dd></div>
+                                            <div><dt className="text-muted-foreground">Lama (hari)</dt><dd>{c.total_days}</dd></div>
+                                            <div><dt className="text-muted-foreground">Status</dt><dd>{c.status}</dd></div>
+                                        </dl>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="hidden md:block">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -263,6 +326,7 @@ const downloadBlob = async (url: string, filename: string) => {
                                 )}
                             </TableBody>
                         </Table>
+                        </div>
                     </CardContent>
                 </Card>
             )}

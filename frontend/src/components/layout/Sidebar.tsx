@@ -5,6 +5,7 @@ import { LayoutDashboard, Users, FileText, CalendarDays, ClipboardCheck, Calenda
 import logo from "@/assets/logo_asm.png";
 
 const ALL = ["DOSEN", "PEGAWAI", "HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG"];
+const REPORT = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III"];
 
 const menuItems = [
   { label: "Dashboard", href: null, icon: LayoutDashboard, roles: ALL, permission: null },
@@ -13,13 +14,13 @@ const menuItems = [
   { label: "Cuti & Izin", href: "/cuti", icon: CalendarDays, roles: ALL, permission: "leave.view" },
   { label: "Approval", href: "/approval", icon: ClipboardCheck, roles: ALL, permission: "leave.approve" },
   { label: "Kalender", href: "/kalender", icon: Calendar, roles: ALL, permission: null },
-  { label: "Laporan", href: "/laporan", icon: BarChart3, roles: ALL, permission: "report.view" },
+  { label: "Laporan", href: "/laporan", icon: BarChart3, roles: REPORT, permission: "report.view" },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { hasRole, hasPermission } = useAuthStore();
+  const { user, hasRole, hasPermission } = useAuthStore();
 
-  const userRoles = hasRole("HRD") ? ["HRD"] : hasRole("DIREKTUR") ? ["DIREKTUR"] : hasRole("PD_I") ? ["PD_I"] : hasRole("PD_II") ? ["PD_II"] : hasRole("PD_III") ? ["PD_III"] : hasRole("KABAG") ? ["KABAG"] : hasRole("DOSEN") ? ["DOSEN"] : ["PEGAWAI"];
+  const userRoles = user?.roles ?? [];
 
   const dashboardHref = (() => {
     if (hasRole("HRD")) return "/dashboard/hrd";
@@ -40,14 +41,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <>
-      <div className="p-4 border-b border-border flex items-center gap-3">
-        <img src={logo} alt="ASM HRIS Logo" className="h-8 w-auto" />
-        <div>
-          <h1 className="text-xl font-bold text-primary">ASM HRIS</h1>
-          <p className="text-xs text-muted-foreground">Sistem Informasi Kepegawaian</p>
+      <div className="flex items-center gap-3 border-b border-border/60 p-4">
+        <img src={logo} alt="ASM HRIS Logo" className="h-10 w-10 rounded-xl bg-accent object-contain p-1 shadow-xs" />
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-bold tracking-tight text-foreground">ASM <span className="text-primary">HRIS</span></h1>
+          <p className="truncate text-[11px] font-medium text-muted-foreground">Sistem Informasi Kepegawaian</p>
         </div>
       </div>
-      <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto" onClick={onNavigate}>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3" onClick={onNavigate}>
         {filteredMenu.map((item) => {
           const href = item.label === "Dashboard" ? dashboardHref : (item.href || "/");
           const Icon = item.icon;
@@ -56,14 +57,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               key={item.label}
               to={href}
               className={({ isActive }) =>
-                `flex items-center gap-3 w-full px-5 py-2.5 rounded-none text-sm font-medium transition-colors ${
+                `group flex items-center gap-3 w-full rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-primary text-primary-foreground font-semibold shadow-[0_4px_14px_-4px_rgb(211_0_0/0.6)]"
+                    : "text-muted-foreground hover:translate-x-0.5 hover:bg-accent hover:text-accent-foreground"
                 }`
               }
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className="h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span className="truncate">{item.label}</span>
             </NavLink>
           );
@@ -74,14 +75,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           to="/audit-logs"
           onClick={onNavigate}
           className={({ isActive }) =>
-            `flex items-center gap-3 w-full px-5 py-2.5 rounded-none text-sm font-medium transition-colors border-t border-border ${
+            `group mx-3 mb-1 flex items-center gap-3 w-[calc(100%-1.5rem)] rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
               isActive
-                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                ? "bg-primary text-primary-foreground font-semibold shadow-[0_4px_14px_-4px_rgb(211_0_0/0.6)]"
+                : "text-muted-foreground hover:translate-x-0.5 hover:bg-accent hover:text-accent-foreground"
             }`
           }
         >
-          <History className="h-4 w-4 shrink-0" />
+          <History className="h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110" />
           <span className="truncate">Audit Trail</span>
         </NavLink>
       )}
@@ -90,19 +91,19 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           to="/hak-akses"
           onClick={onNavigate}
           className={({ isActive }) =>
-            `flex items-center gap-3 w-full px-5 py-2.5 rounded-none text-sm font-medium transition-colors ${
+            `group mx-3 flex items-center gap-3 w-[calc(100%-1.5rem)] rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
               isActive
-                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                ? "bg-primary text-primary-foreground font-semibold shadow-[0_4px_14px_-4px_rgb(211_0_0/0.6)]"
+                : "text-muted-foreground hover:translate-x-0.5 hover:bg-accent hover:text-accent-foreground"
             }`
           }
         >
-          <ShieldCheck className="h-4 w-4 shrink-0" />
+          <ShieldCheck className="h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110" />
           <span className="truncate">Hak Akses</span>
         </NavLink>
       )}
-      <div className="p-4 border-t border-border">
-        <div className="text-xs text-muted-foreground">v1.0.0</div>
+      <div className="border-t border-border/60 p-4">
+        <div className="text-[11px] font-medium text-muted-foreground">v1.0.0</div>
       </div>
     </>
   );
@@ -110,7 +111,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export default function Sidebar() {
   return (
-    <aside className="hidden lg:flex w-64 shrink-0 border-r border-border bg-background h-screen sticky top-0 flex-col">
+    <aside className="hidden lg:flex w-[260px] shrink-0 border-r border-border/60 bg-card/80 backdrop-blur h-screen sticky top-0 flex-col shadow-[var(--shadow-card)]">
       <SidebarContent />
     </aside>
   );

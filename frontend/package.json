@@ -28,6 +28,7 @@
     "date-fns": "^4.4.0",
     "laravel-echo": "^2.4.0",
     "lucide-react": "^1.38.0",
+    "pdfjs-dist": "^4.10.38",
     "pusher-js": "^8.6.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/services/api';
 import { Link } from 'react-router-dom';
+import { ArrowRight, CalendarPlus, FileText, FileType, KeyRound, Upload, UserRound } from 'lucide-react';
 
 interface PengajuanItem {
     id: number;
@@ -34,6 +35,19 @@ interface DosenStats {
     mengajar?: { total_sks?: number; matkul?: Matkul[] };
     penelitian?: { terisi?: boolean };
     libur_terdekat?: Libur[];
+    profil?: ProfilInfo;
+}
+
+interface ProfilInfo {
+    nama_lengkap?: string;
+    gelar_depan?: string;
+    gelar_belakang?: string;
+    nik?: string;
+    nip?: string;
+    nidn?: string;
+    jabatan?: string;
+    status_kepegawaian?: string;
+    tanggal_masuk_kerja?: string;
 }
 
 const fetchStats = async (): Promise<DosenStats> => {
@@ -41,19 +55,24 @@ const fetchStats = async (): Promise<DosenStats> => {
     return res.data.data;
 };
 
-const quickActionClass = "w-full px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+const quickActionClass = "group flex w-full items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 text-left text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent hover:shadow-[var(--shadow-card)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
 
-function QuickAction({ to, onClick, disabled, children }: { to?: string; onClick?: () => void; disabled?: boolean; children: ReactNode }) {
+function QuickAction({ to, onClick, disabled, icon, children }: { to?: string; onClick?: () => void; disabled?: boolean; icon: ReactNode; children: ReactNode }) {
+    const inner = (
+        <>
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary [&_svg]:size-4">
+                {icon}
+            </span>
+            <span className="min-w-0 flex-1 truncate">{children}</span>
+            <ArrowRight className="size-4 shrink-0 -translate-x-1 text-muted-foreground/50 opacity-0 transition-all group-hover:translate-x-0 group-hover:text-primary group-hover:opacity-100" />
+        </>
+    );
     if (to) {
-        return (
-            <Link to={to} className="block">
-                <button className={quickActionClass}>{children}</button>
-            </Link>
-        );
+        return <Link to={to} className={quickActionClass}>{inner}</Link>;
     }
     return (
         <button className={quickActionClass} onClick={onClick} disabled={disabled}>
-            {children}
+            {inner}
         </button>
     );
 }
@@ -68,21 +87,40 @@ const downloadBiodata = async (kind: 'pdf' | 'word', employeeId: number, fileNam
     document.body.appendChild(link);
     link.click();
     link.remove();
+    window.URL.revokeObjectURL(blobUrl);
 };
 
 const statusBadge = (status: string): string => {
     if (status === 'Pending') return 'bg-yellow-100 text-yellow-800';
-    if (status === 'Disetujui Kepala Bagian') return 'bg-blue-100 text-blue-800';
+    if (['Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur'].includes(status)) return 'bg-blue-100 text-blue-800';
     if (status === 'Approved' || status === 'Disetujui HRD') return 'bg-green-100 text-green-800';
-    if (status === 'Rejected' || status === 'Ditolak Kepala Bagian' || status === 'Ditolak HRD') return 'bg-red-100 text-red-800';
+    if (['Rejected', 'Ditolak Atasan Langsung', 'Ditolak Kepala Bagian', 'Ditolak Direktur', 'Ditolak HRD'].includes(status)) return 'bg-red-100 text-red-800';
     return 'bg-gray-100 text-gray-800';
 };
 
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
+    return (
+        <div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="font-medium">{value || '-'}</p>
+        </div>
+    );
+}
+
+function namaLengkapDari(p?: ProfilInfo): string {
+    if (!p?.nama_lengkap) return '-';
+    const depan = p.gelar_depan ? `${p.gelar_depan} ` : '';
+    const belakang = p.gelar_belakang ? `, ${p.gelar_belakang}` : '';
+    return `${depan}${p.nama_lengkap}${belakang}`;
+}
+
 export default function DosenDashboard() {
     const { data, isLoading, error } = useQuery({
-        queryKey: ['dashboard-stats'],
+        queryKey: ['dashboard-stats', 'dosen'],
         queryFn: fetchStats,
     });
+
+    const namaLengkap = namaLengkapDari(data?.profil);
 
     if (isLoading) {
         return (
@@ -123,6 +161,20 @@ export default function DosenDashboard() {
                 <h1 className="text-2xl font-bold">Dashboard Dosen</h1>
                 <p className="text-muted-foreground">Self-service cuti dan profil</p>
             </div>
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Informasi Pribadi</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    <InfoRow label="Nama Lengkap" value={namaLengkap} />
+                    <InfoRow label="Nomor Induk Kepegawaian" value={data?.profil?.nik} />
+                    {data?.profil?.nip && <InfoRow label="NIP" value={data.profil.nip} />}
+                    {data?.profil?.nidn && <InfoRow label="NIDN" value={data.profil.nidn} />}
+                    <InfoRow label="Jabatan" value={data?.profil?.jabatan} />
+                    <InfoRow label="Status Kepegawaian" value={data?.profil?.status_kepegawaian} />
+                    <InfoRow label="Tanggal Masuk Kerja" value={data?.profil?.tanggal_masuk_kerja} />
+                </CardContent>
+            </Card>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -190,27 +242,39 @@ export default function DosenDashboard() {
                     <CardHeader>
                         <CardTitle>Aksi Cepat</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Link to="/cuti/create" className="block col-span-2">
-                            <button className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                                Ajukan Cuti
-                            </button>
+                    <CardContent className="space-y-4">
+                        <Link
+                            to="/cuti/create"
+                            className="group flex items-center gap-3 rounded-xl bg-primary px-5 py-4 text-primary-foreground shadow-[0_2px_10px_-2px_rgb(211_0_0/0.5)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#B00000] hover:shadow-[0_6px_18px_-4px_rgb(211_0_0/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/15">
+                                <CalendarPlus className="size-5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block font-semibold leading-tight">Ajukan Cuti</span>
+                                <span className="block text-xs text-primary-foreground/80">Isi formulir pengajuan</span>
+                            </span>
+                            <ArrowRight className="size-5 shrink-0 transition-transform group-hover:translate-x-1" />
                         </Link>
-                        <QuickAction to="/dokumen">Unggah Dokumen</QuickAction>
-                        <QuickAction to="/profile">Profil Saya</QuickAction>
-                        <QuickAction to="/profile/password">Ganti Kata Sandi</QuickAction>
-                        <QuickAction
-                            disabled={!data?.employee_id}
-                            onClick={() => data?.employee_id && downloadBiodata('pdf', data.employee_id, 'saya')}
-                        >
-                            Unduh Biodata PDF
-                        </QuickAction>
-                        <QuickAction
-                            disabled={!data?.employee_id}
-                            onClick={() => data?.employee_id && downloadBiodata('word', data.employee_id, 'saya')}
-                        >
-                            Unduh Biodata Word
-                        </QuickAction>
+                        <div className="grid grid-cols-1 gap-2">
+                            <QuickAction to="/dokumen" icon={<Upload />}>Unggah Dokumen</QuickAction>
+                            <QuickAction to="/profile" icon={<UserRound />}>Profil Saya</QuickAction>
+                            <QuickAction
+                                disabled={!data?.employee_id}
+                                icon={<FileText />}
+                                onClick={() => data?.employee_id && downloadBiodata('pdf', data.employee_id, 'saya')}
+                            >
+                                Unduh Biodata PDF
+                            </QuickAction>
+                            <QuickAction
+                                disabled={!data?.employee_id}
+                                icon={<FileType />}
+                                onClick={() => data?.employee_id && downloadBiodata('word', data.employee_id, 'saya')}
+                            >
+                                Unduh Biodata Word
+                            </QuickAction>
+                            <QuickAction to="/profile/password" icon={<KeyRound />}>Ganti Kata Sandi</QuickAction>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

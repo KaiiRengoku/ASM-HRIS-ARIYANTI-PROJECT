@@ -9,7 +9,7 @@ class ProfileEducationController extends Controller
 {
     public function show(Request $request)
     {
-        $employee = $request->user()->employee;
+        $employee = $request->user()->employee ?? abort(404, 'Akun ini tidak terhubung ke data pegawai.');
         $byJenjang = $employee->educations()->get()->keyBy('jenjang');
 
         return response()->json(['success' => true, 'data' => [
@@ -32,7 +32,7 @@ class ProfileEducationController extends Controller
             'sertifikasi' => 'nullable|string',
         ]);
 
-        $employee = $request->user()->employee;
+        $employee = $request->user()->employee ?? abort(404, 'Akun ini tidak terhubung ke data pegawai.');
 
         DB::transaction(function () use ($employee, $validated) {
             foreach ($validated['pendidikan'] as $row) {

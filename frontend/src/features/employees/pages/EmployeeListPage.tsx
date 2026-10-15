@@ -11,57 +11,42 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ReadOnlyField } from '@/components/ui/read-only-field';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Role } from '@/types';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee, type EmployeePayload } from '../services/employeeService';
 import { toast } from '@/components/ui/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
-
-const extractErrorMessage = (e: unknown, fallback: string): string => {
-  if (e instanceof Error && e.message) return e.message;
-  if (e && typeof e === 'object' && 'response' in e) {
-    const response = e.response;
-    if (response && typeof response === 'object' && 'data' in response) {
-      const data = response.data;
-      if (data && typeof data === 'object') {
-        if ('errors' in data && data.errors && typeof data.errors === 'object') {
-          for (const value of Object.values(data.errors)) {
-            if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
-            if (typeof value === 'string') return value;
-          }
-        }
-        if ('message' in data && typeof data.message === 'string' && data.message) return data.message;
-      }
-    }
-  }
-  return fallback;
-};
+import { Eye, EyeOff, MoreVertical } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { groupPositions, HIDDEN_CODES, type Position } from '../utils/positionGroups';
+import { extractErrorMessage } from '@/services/apiError';
 
 export interface EmployeeFormState {
   nik: string; nama_lengkap: string; email: string; nomor_hp: string;
   jenis_kelamin: string; status_kepegawaian: string;
   tanggal_masuk_kerja: string; nip: string; nidn: string; alamat: string;
-  password: string; role: string; position_id: string; is_dosen: boolean;
+  password: string; role: string; position_id: string; supervisor_id: string; is_dosen: boolean;
 }
 
 const emptyForm: EmployeeFormState = {
   nik: '', nama_lengkap: '', email: '', nomor_hp: '',
   jenis_kelamin: '', status_kepegawaian: 'aktif',
   tanggal_masuk_kerja: '', nip: '', nidn: '', alamat: '',
-  password: '', role: 'PEGAWAI', position_id: '', is_dosen: false,
+  password: '', role: 'PEGAWAI', position_id: '', supervisor_id: '', is_dosen: false,
 };
 
 export default function EmployeeListPage() {
   const [search, setSearch] = useState('');
+  const [tanpaAtasan, setTanpaAtasan] = useState(false);
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<EmployeeFormState>(emptyForm);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountEmp, setAccountEmp] = useState<any>(null);
-  const [accountForm, setAccountForm] = useState({ password: '', role: 'PEGAWAI', position_id: '' });
+  const [accountForm, setAccountForm] = useState({ password: '', role: 'PEGAWAI' });
   const [showAccountPassword, setShowAccountPassword] = useState(false);
   const [showFormPassword, setShowFormPassword] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ kind: 'account' | 'employee'; id: number; name: string } | null>(null);
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
   const canCreate = hasPermission('employee.create');
@@ -72,26 +57,32 @@ export default function EmployeeListPage() {
   const debouncedSearch = useDebounce(search);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['employees', page, debouncedSearch],
-    queryFn: () => getEmployees({ page, search: debouncedSearch || undefined }),
+    queryKey: ['employees', page, debouncedSearch, tanpaAtasan],
+    queryFn: () => getEmployees({ page, search: debouncedSearch || undefined, tanpa_atasan: tanpaAtasan || undefined }),
     placeholderData: keepPreviousData,
   });
 
-  const { data: roles } = useQuery({
+  const { data: roles } = useQuery<Role[]>({
     queryKey: ['roles'],
     queryFn: async () => (await api.get('/roles')).data.data,
     enabled: canCreate || canManageAccount,
   });
 
-  const { data: positions } = useQuery({
+  const { data: positions } = useQuery<Position[]>({
     queryKey: ['positions'],
     queryFn: async () => (await api.get('/positions')).data.data,
+  });
+
+  const { data: supervisorOptions } = useQuery<{ id: number; nama_lengkap: string; nik: string; position: string | null }[]>({
+    queryKey: ['employees', 'supervisor-options'],
+    queryFn: async () => (await getEmployees({ per_page: 100 })).data,
+    enabled: canCreate || canUpdate,
   });
 
   const saveMutation = useMutation({
     mutationFn: (payload: EmployeeFormState) => {
       const nik = payload.nik.trim();
-      if (!/^[0-9]{16}$/.test(nik)) throw new Error('NIK harus 16 digit numerik (hanya angka).');
+      if (!/^[0-9]{9}$/.test(nik)) throw new Error('Nomor Induk Kepegawaian harus 9 digit angka.');
       const data: EmployeePayload = {
         nik,
         nama_lengkap: payload.nama_lengkap,
@@ -105,6 +96,7 @@ export default function EmployeeListPage() {
         alamat: payload.alamat,
         is_dosen: payload.is_dosen,
         position_id: payload.position_id ? Number(payload.position_id) : null,
+        supervisor_id: payload.supervisor_id ? Number(payload.supervisor_id) : null,
         role: payload.role,
         password: payload.password,
       };
@@ -157,18 +149,59 @@ export default function EmployeeListPage() {
       tanggal_masuk_kerja: emp.tanggal_masuk_kerja || '', nip: emp.nip || '',
       nidn: emp.nidn || '', alamat: emp.alamat || '',
       password: '', role: emp.account?.role || 'PEGAWAI', position_id: emp.position_id ? String(emp.position_id) : '',
+      supervisor_id: emp.supervisor_id ? String(emp.supervisor_id) : '',
       is_dosen: !!emp.is_dosen,
     });
     setOpen(true);
   };
   const closeDialog = () => { setOpen(false); setEditId(null); setForm(emptyForm); };
+
+  // Bila jabatan terpilih termasuk yang disembunyikan (DIREKTUR/KABAG), tetap
+  // tampilkan sebagai opsi agar nilai lama tidak hilang / berubah diam-diam.
+  const selectedPosition = positions?.find((p) => String(p.id) === form.position_id);
+  const extraPositionOption = selectedPosition && selectedPosition.code && HIDDEN_CODES.includes(selectedPosition.code)
+    ? selectedPosition
+    : null;
   const set = <K extends keyof EmployeeFormState>(k: K, v: EmployeeFormState[K]) => setForm(f => ({ ...f, [k]: v }));
 
   const openAccount = (emp: any) => {
     setAccountEmp(emp);
-    setAccountForm({ password: '', role: emp.account?.role || 'PEGAWAI', position_id: emp.position_id ? String(emp.position_id) : '' });
+    setAccountForm({ password: '', role: emp.account?.role || 'PEGAWAI' });
     setAccountOpen(true);
   };
+
+  // Dipakai di tabel (desktop) dan kartu (mobile) agar tidak diduplikasi.
+  const renderManageMenu = (emp: any) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        {/* h-9 w-9 menyamakan tinggi dengan tombol Detail (size="sm") di sebelahnya. */}
+        <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Kelola pegawai">
+          <MoreVertical />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {canUpdate && (
+          <DropdownMenuItem onClick={() => openEdit(emp)}>Edit Data</DropdownMenuItem>
+        )}
+        {canManageAccount && emp.has_account && (
+          <DropdownMenuItem onClick={() => openAccount(emp)}>Kelola Akun</DropdownMenuItem>
+        )}
+        {canManageAccount && emp.has_account && (
+          <DropdownMenuItem onClick={() => setConfirmAction({ kind: 'account', id: emp.id, name: emp.nama_lengkap })}>
+            Hapus Akun
+          </DropdownMenuItem>
+        )}
+        {canDelete && (
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={() => setConfirmAction({ kind: 'employee', id: emp.id, name: emp.nama_lengkap })}
+          >
+            Hapus Pegawai
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   if (error) return <div className="p-6 text-destructive">Gagal memuat data.</div>;
 
@@ -196,19 +229,19 @@ export default function EmployeeListPage() {
             <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>NIK *</Label>
+                  <Label>Nomor Induk Kepegawaian *</Label>
                   <Input
                     value={form.nik}
-                    onChange={(e) => set('nik', e.target.value.replace(/\D/g, '').slice(0, 16))}
+                    onChange={(e) => set('nik', e.target.value.replace(/\D/g, '').slice(0, 9))}
                     inputMode="numeric"
-                    pattern="[0-9]{16}"
-                    maxLength={16}
-                    title="NIK harus 16 digit numerik (hanya angka)"
-                    placeholder="16 digit angka"
+                    pattern="[0-9]{9}"
+                    maxLength={9}
+                    title="Nomor Induk Kepegawaian harus 9 digit angka"
+                    placeholder="mis. 447199054"
                     required
                   />
-                  {form.nik.length > 0 && form.nik.length < 16 && (
-                    <p className="text-xs text-destructive">NIK harus 16 digit ({form.nik.length}/16).</p>
+                  {form.nik.length > 0 && form.nik.length !== 9 && (
+                    <p className="text-xs text-destructive">Nomor Induk Kepegawaian harus tepat 9 digit ({form.nik.length}/9).</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -261,9 +294,44 @@ export default function EmployeeListPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                {editId && (
-                <ReadOnlyField label="Jabatan" value={employees.find((e: any) => e.id === editId)?.position} />
-                )}
+                <div className="space-y-2">
+                  <Label>Jabatan</Label>
+                  <Select value={form.position_id || undefined} onValueChange={(v) => set('position_id', v)}>
+                    <SelectTrigger><SelectValue placeholder="Pilih jabatan" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {extraPositionOption && (
+                        <SelectItem key={`extra-${extraPositionOption.id}`} value={String(extraPositionOption.id)}>
+                          {extraPositionOption.name} (jabatan lama)
+                        </SelectItem>
+                      )}
+                      {groupPositions(positions).map((group) => (
+                        <SelectGroup key={group.label}>
+                          <SelectLabel>{group.label}</SelectLabel>
+                          {group.items.map((p) => (
+                            <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Atasan Langsung</Label>
+                <Select value={form.supervisor_id || 'none'} onValueChange={(v) => set('supervisor_id', v === 'none' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="Pilih atasan langsung" /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="none">— Tanpa atasan langsung —</SelectItem>
+                    {supervisorOptions
+                      ?.filter((e: any) => String(e.id) !== String(editId))
+                      .map((e: any) => (
+                        <SelectItem key={e.id} value={String(e.id)}>
+                          {e.nama_lengkap}{e.position ? ` — ${e.position}` : ''} ({e.nik})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Penyetuju pertama cuti/izin. Kosongkan bila belum dipetakan (memakai alur lama).</p>
               </div>
               <div className="space-y-2">
                 <Label>Alamat</Label>
@@ -275,7 +343,7 @@ export default function EmployeeListPage() {
               </Label>
               {!editId && (
                 <div className="space-y-4 border-t pt-4">
-                  <p className="text-sm font-medium">Akun Login (otomatis dibuat, login pakai NIK + kata sandi)</p>
+                  <p className="text-sm font-medium">Akun Login (otomatis dibuat, login pakai Nomor Induk Kepegawaian + kata sandi)</p>
                   <div className="space-y-2">
                     <Label>Kata Sandi *</Label>
                     <div className="relative">
@@ -292,36 +360,22 @@ export default function EmployeeListPage() {
                         type="button"
                         onClick={() => setShowFormPassword(v => !v)}
                         aria-label={showFormPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
                       >
                         {showFormPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Role *</Label>
-                      <Select value={form.role || 'PEGAWAI'} onValueChange={(v) => set('role', v)}>
-                        <SelectTrigger><SelectValue placeholder="Pilih role" /></SelectTrigger>
-                        <SelectContent>
-                          {roles?.map((r: any) => (
-                            <SelectItem key={r.id} value={r.code}>{r.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Jabatan (opsional — kosongkan untuk ikut role)</Label>
-                      <Select value={form.position_id || 'auto'} onValueChange={(v) => set('position_id', v === 'auto' ? '' : v)}>
-                        <SelectTrigger><SelectValue placeholder="Ikuti role" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">Ikuti role</SelectItem>
-                          {positions?.map((p: any) => (
-                            <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Role *</Label>
+                    <Select value={form.role || 'PEGAWAI'} onValueChange={(v) => set('role', v)}>
+                      <SelectTrigger><SelectValue placeholder="Pilih role" /></SelectTrigger>
+                      <SelectContent>
+                        {roles?.map((r) => (
+                          <SelectItem key={r.id} value={r.code}>{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -341,27 +395,84 @@ export default function EmployeeListPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">Cari Pegawai</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <Input
-            placeholder="Cari berdasarkan NIK, nama, NIP, NIDN, atau email..."
+            placeholder="Cari berdasarkan Nomor Induk Kepegawaian, nama, NIP, NIDN, atau email..."
             value={search}
             autoComplete="off"
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="max-w-md"
           />
+          <Label className="flex items-center gap-2 cursor-pointer font-normal">
+            <Checkbox
+              checked={tanpaAtasan}
+              onCheckedChange={(v) => { setTanpaAtasan(v === true); setPage(1); }}
+            />
+            Hanya yang belum punya atasan langsung
+          </Label>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Mobile: kartu per pegawai — tabel 8 kolom tak muat di layar sempit. */}
+          <div className="divide-y md:hidden">
+            {isLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Memuat data pegawai...</p>
+            ) : employees.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Belum ada data pegawai</p>
+            ) : (
+              employees.map((emp: any) => (
+                <div key={emp.id} className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium" title={emp.nama_lengkap}>{emp.nama_lengkap}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{emp.nik}</p>
+                    </div>
+                    {emp.has_account ? (
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">{emp.account?.role_name || emp.account?.role}</span>
+                    ) : (
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">Belum ada akun</span>
+                    )}
+                  </div>
+                  <dl className="grid grid-cols-3 gap-x-3 gap-y-2 text-xs">
+                    <div className="col-span-3 min-w-0">
+                      <dt className="text-muted-foreground">Email</dt>
+                      <dd className="truncate" title={emp.email}>{emp.email}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">Jabatan</dt>
+                      <dd className="truncate" title={emp.position || ''}>{emp.position || '-'}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">Status</dt>
+                      <dd className="truncate">{emp.status_kepegawaian || 'aktif'}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">Atasan</dt>
+                      <dd className="truncate" title={emp.supervisor?.nama_lengkap ?? ''}>{emp.supervisor?.nama_lengkap || 'Belum dipetakan'}</dd>
+                    </div>
+                  </dl>
+                  <div className="flex items-center gap-2">
+                    <Link to={`/pegawai/${emp.id}`} className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full">Detail</Button>
+                    </Link>
+                    {(canUpdate || canDelete || canManageAccount) && renderManageMenu(emp)}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b">
                 <tr>
-                  <th className="text-left py-3 px-4 font-medium">NIK</th>
+                  <th className="text-left py-3 px-4 font-medium">Nomor Induk Kepegawaian</th>
                   <th className="text-left py-3 px-4 font-medium">Nama</th>
                   <th className="text-left py-3 px-4 font-medium">Email</th>
                   <th className="text-left py-3 px-4 font-medium">Jabatan</th>
+                  <th className="text-left py-3 px-4 font-medium">Atasan Langsung</th>
                   <th className="text-left py-3 px-4 font-medium">Akun</th>
                   <th className="text-left py-3 px-4 font-medium">Status</th>
                   <th className="text-right py-3 px-4 font-medium">Aksi</th>
@@ -370,11 +481,11 @@ export default function EmployeeListPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">Memuat data pegawai...</td>
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">Memuat data pegawai...</td>
                   </tr>
                 ) : employees.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">Belum ada data pegawai</td>
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">Belum ada data pegawai</td>
                   </tr>
                 ) : (
                   employees.map((emp: any) => (
@@ -383,6 +494,11 @@ export default function EmployeeListPage() {
                       <td className="py-3 px-4 max-w-44 truncate font-medium" title={emp.nama_lengkap}>{emp.nama_lengkap}</td>
                       <td className="py-3 px-4 max-w-52 truncate" title={emp.email}>{emp.email}</td>
                       <td className="py-3 px-4 whitespace-nowrap">{emp.position || '-'}</td>
+                      <td className="py-3 px-4 max-w-44 truncate" title={emp.supervisor?.nama_lengkap ?? ''}>
+                        {emp.supervisor?.nama_lengkap || (
+                          <span className="inline-block whitespace-nowrap px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-800">Belum dipetakan</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
                         {emp.has_account ? (
                           <span className="inline-block whitespace-nowrap px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">{emp.account?.role_name || emp.account?.role}</span>
@@ -396,34 +512,7 @@ export default function EmployeeListPage() {
                           <Link to={`/pegawai/${emp.id}`}>
                             <Button variant="outline" size="sm">Detail</Button>
                           </Link>
-                          {(canUpdate || canDelete || canManageAccount) && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="outline" size="sm">Kelola</Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {canUpdate && (
-                                    <DropdownMenuItem onClick={() => openEdit(emp)}>Edit Data</DropdownMenuItem>
-                                  )}
-                                  {canManageAccount && emp.has_account && (
-                                    <DropdownMenuItem onClick={() => openAccount(emp)}>Kelola Akun</DropdownMenuItem>
-                                  )}
-                                  {canDelete && emp.has_account && (
-                                    <DropdownMenuItem onClick={() => { if (confirm(`Hapus akun ${emp.nama_lengkap}? Data pegawai tetap ada.`)) deleteAccountMutation.mutate(emp.id); }}>
-                                      Hapus Akun
-                                    </DropdownMenuItem>
-                                  )}
-                                  {canDelete && (
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => { if (confirm(`Hapus data ${emp.nama_lengkap} beserta akunnya secara permanen?`)) deleteMutation.mutate(emp.id); }}
-                                    >
-                                      Hapus Pegawai
-                                    </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                          )}
+                          {(canUpdate || canDelete || canManageAccount) && renderManageMenu(emp)}
                         </div>
                       </td>
                     </tr>
@@ -444,7 +533,7 @@ export default function EmployeeListPage() {
               <Select value={accountForm.role} onValueChange={(v) => setAccountForm(f => ({ ...f, role: v }))}>
                 <SelectTrigger><SelectValue placeholder="Pilih role" /></SelectTrigger>
                 <SelectContent>
-                  {roles?.map((r: any) => (
+                  {roles?.map((r) => (
                     <SelectItem key={r.id} value={r.code}>{r.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -465,30 +554,17 @@ export default function EmployeeListPage() {
                   type="button"
                   onClick={() => setShowAccountPassword(v => !v)}
                   aria-label={showAccountPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
                   {showAccountPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Jabatan (opsional — kosongkan untuk ikut role)</Label>
-              <Select value={accountForm.position_id || 'auto'} onValueChange={(v) => setAccountForm(f => ({ ...f, position_id: v === 'auto' ? '' : v }))}>
-                <SelectTrigger><SelectValue placeholder="Ikuti role" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Ikuti role</SelectItem>
-                  {positions?.map((p: any) => (
-                    <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="flex gap-2">
               <Button
                 onClick={() => accountMutation.mutate({
                   role: accountForm.role,
                   ...(accountForm.password ? { password: accountForm.password } : {}),
-                  ...(accountForm.position_id ? { position_id: Number(accountForm.position_id) } : {}),
                 })}
                 disabled={accountMutation.isPending}
               >
@@ -515,6 +591,24 @@ export default function EmployeeListPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        onOpenChange={(v) => { if (!v) setConfirmAction(null); }}
+        title={confirmAction?.kind === 'account' ? 'Hapus Akun' : 'Hapus Pegawai'}
+        description={
+          confirmAction?.kind === 'account'
+            ? `Hapus akun ${confirmAction?.name ?? ''}? Data pegawai tetap ada.`
+            : `Hapus data ${confirmAction?.name ?? ''} beserta akunnya secara permanen?`
+        }
+        confirmLabel="Hapus"
+        destructive
+        onConfirm={() => {
+          if (!confirmAction) return;
+          if (confirmAction.kind === 'account') deleteAccountMutation.mutate(confirmAction.id);
+          else deleteMutation.mutate(confirmAction.id);
+        }}
+      />
     </div>
   );
 }

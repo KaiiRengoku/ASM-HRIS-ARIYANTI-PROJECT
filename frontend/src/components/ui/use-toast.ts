@@ -4,12 +4,15 @@ import * as React from "react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 5000;
+// Cukup untuk menutup animasi keluar (0.18s) sebelum elemen dilepas dari DOM.
+// Default shadcn 5000 bikin toast sukses login masih terlihat ~5s setelah ditutup.
+const TOAST_REMOVE_DELAY = 300;
 
 type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
+  icon?: React.ReactNode;
   action?: ToastActionElement;
 };
 

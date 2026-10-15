@@ -35,18 +35,32 @@ class LeaveWithoutBalanceTest extends TestCase
         return $user;
     }
 
-    public function test_dosen_baru_tanpa_saldo_tetap_bisa_mengajukan(): void
+    // Tanggal ≥7 hari ke depan yang jatuh pada hari kerja, agar tidak kena
+    // guard "minimal 1 minggu" maupun WorkingDayService (0 hari kerja).
+    private function tanggalKerja(int $offset = 8): Carbon
     {
-        $dosen = $this->buatUser('1234567890123456', 'DOSEN');
+        $d = Carbon::today()->addDays($offset);
+        while ($d->isWeekend()) {
+            $d->addDay();
+        }
+
+        return $d;
+    }
+
+    // Dosen hanya boleh mengajukan Izin (bukan Cuti), jadi skenario "jenis
+    // pemotong saldo tanpa saldo" diuji dengan pegawai.
+    public function test_pegawai_baru_tanpa_saldo_tetap_bisa_mengajukan(): void
+    {
+        $pegawai = $this->buatUser('1234567890123456', 'PEGAWAI');
         $annual = LeaveType::create([
             'name' => 'Cuti Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => true,
         ]);
 
-        $start = Carbon::today()->addDays(10);
-        $end = $start->copy()->addDays(1);
+        $start = $this->tanggalKerja();
+        $end = $start->copy()->addDay();
 
         // Tidak ada LeaveBalance sama sekali untuk pegawai ini.
-        $this->actingAs($dosen)->postJson('/api/leaves', [
+        $this->actingAs($pegawai)->postJson('/api/leaves', [
             'leave_type_id' => $annual->id,
             'start_date' => $start->toDateString(),
             'end_date' => $end->toDateString(),
@@ -54,7 +68,7 @@ class LeaveWithoutBalanceTest extends TestCase
         ])->assertOk()->assertJsonPath('success', true);
 
         $this->assertDatabaseHas('leave_requests', [
-            'employee_id' => $dosen->employee_id,
+            'employee_id' => $pegawai->employee_id,
             'status' => 'Pending',
         ]);
     }
@@ -66,7 +80,7 @@ class LeaveWithoutBalanceTest extends TestCase
             'name' => 'Izin Tidak Masuk', 'code' => 'PERMIT_ABSENT', 'is_leave_balance_deducted' => false,
         ]);
 
-        $start = Carbon::today()->addDays(10);
+        $start = $this->tanggalKerja();
 
         $this->actingAs($pegawai)->postJson('/api/leaves', [
             'leave_type_id' => $permit->id,

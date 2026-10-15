@@ -44,7 +44,6 @@ class BiodataSectionsTest extends TestCase
             'tahun_lulus' => 2014,
         ]);
         $this->lecturer->functional()->create([
-            'jabatan_fungsional' => 'Lektor',
             'pangkat' => 'Penata',
             'riwayat_penelitian_pengabdian' => 'Penelitian A',
         ]);

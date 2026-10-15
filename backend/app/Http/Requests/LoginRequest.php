@@ -14,7 +14,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nik' => ['required', 'string', 'size:16', 'regex:/^[0-9]{16}$/'],
+            'nik' => ['required', 'string', 'size:9', 'regex:/^[0-9]{9}$/'],
             'password' => ['required', 'string'],
             'remember' => ['sometimes', 'boolean'],
         ];
@@ -23,9 +23,9 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nik.required' => 'NIK wajib diisi.',
-            'nik.size' => 'NIK harus 16 digit.',
-            'nik.regex' => 'NIK harus 16 digit numerik.',
+            'nik.required' => 'Nomor Induk Kepegawaian wajib diisi.',
+            'nik.size' => 'Nomor Induk Kepegawaian harus tepat 9 digit angka.',
+            'nik.regex' => 'Nomor Induk Kepegawaian hanya boleh berisi angka.',
             'password.required' => 'Kata sandi wajib diisi.',
         ];
     }

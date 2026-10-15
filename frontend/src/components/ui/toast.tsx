@@ -15,7 +15,9 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+      // Tengah layar: notif login tidak lagi menutupi header. pointer-events-none agar
+      // klik lolos ke halaman; toast-nya sendiri sudah pointer-events-auto.
+      "pointer-events-none fixed left-1/2 top-1/2 z-[100] flex max-h-screen w-full -translate-x-1/2 -translate-y-1/2 flex-col-reverse items-center gap-2 p-4 sm:flex-col md:max-w-[420px]",
       className
     )}
     {...props}
@@ -24,11 +26,13 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  // bg-card (putih), bukan bg-background: kalau memakai warna halaman, toast tenggelam.
+  // gap-3 menggantikan justify-between + space-x-4 agar ikon menempel ke teks, bukan terpisah jauh.
+  "group pointer-events-auto relative flex w-full items-center gap-3 overflow-hidden rounded-md border bg-card p-4 pr-10 text-card-foreground shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-toast-in data-[state=closed]:animate-toast-out",
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
+        default: "border bg-card text-card-foreground",
         destructive: "destructive group border-destructive bg-destructive text-destructive-foreground",
       },
     },

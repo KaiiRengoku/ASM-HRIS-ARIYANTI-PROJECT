@@ -46,7 +46,11 @@ export default function HakAksesPage() {
             toast({ title: 'Berhasil', description: 'Hak akses tersimpan. Anggota role yang berubah otomatis logout.' });
             try {
                 const res = await getUser();
-                if (res.success && token) setAuth(res.data.user, token);
+                if (res.success && token) {
+                    // Peran user ini berubah: buang cache lama agar hak akses barunya langsung berlaku.
+                    queryClient.clear();
+                    setAuth(res.data.user, token);
+                }
             } catch { /* token sendiri mungkin tetap valid */ }
             setChecked(null);
         },
@@ -97,8 +101,8 @@ export default function HakAksesPage() {
             <div className="grid gap-4 lg:grid-cols-2">
                 {data.roles.map((role) => (
                     <Card key={role.id}>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                            <CardTitle className="text-lg">{role.name}</CardTitle>
+                        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
+                            <CardTitle className="min-w-0 truncate text-lg">{role.name}</CardTitle>
                             <Button
                                 size="sm"
                                 onClick={() => saveMutation.mutate(role)}

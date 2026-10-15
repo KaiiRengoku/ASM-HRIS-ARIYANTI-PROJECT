@@ -17,6 +17,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProfileEducationController;
 use App\Http\Controllers\ProfileFunctionalController;
 use App\Http\Controllers\ProfileTeachingAssignmentController;
+use App\Http\Controllers\ProfileSkRecordController;
+use App\Http\Controllers\ProfileCertificationController;
 use App\Http\Controllers\ProfilePositionHistoryController;
 use App\Http\Controllers\RolePermissionController;
 use Illuminate\Support\Facades\Route;
@@ -29,9 +31,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/broadcasting/auth', [\Illuminate\Broadcasting\BroadcastController::class, 'authenticate'])
     ->middleware('auth:sanctum');
 
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -50,10 +52,12 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::middleware('permission:employee.delete')->group(function () {
         Route::delete('employees/{employee}', [EmployeeController::class, 'destroy']);
-        Route::delete('employees/{employee}/account', [EmployeeController::class, 'destroyAccount']);
     });
-    Route::middleware('permission:auth.user.update')->group(function () {
+    // Hapus akun login saja (data pegawai tetap) — setara dengan kelola akun,
+    // jadi gerbangnya sama: HRD + auth.user.update, bukan employee.delete.
+    Route::middleware(['role:HRD', 'permission:auth.user.update'])->group(function () {
         Route::put('employees/{employee}/account', [EmployeeController::class, 'updateAccount']);
+        Route::delete('employees/{employee}/account', [EmployeeController::class, 'destroyAccount']);
     });
     Route::get('roles', function () {
         return response()->json(['success' => true, 'data' => \App\Models\Role::all()]);
@@ -114,10 +118,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('leaves', [LeaveController::class, 'store'])->middleware('permission:leave.create');
     Route::get('leaves/{leave}', [LeaveController::class, 'show'])->middleware('permission:leave.view');
     Route::post('leaves/{leave}/cancel', [LeaveController::class, 'cancel'])->middleware('permission:leave.cancel');
-    Route::middleware(['role:KABAG,HRD', 'permission:leave.approve'])->group(function () {
+    Route::middleware(['role:KABAG,DIREKTUR,HRD,PD_I,PD_II,PD_III', 'permission:leave.approve'])->group(function () {
         Route::post('leaves/{leave}/approve', [LeaveController::class, 'approve']);
     });
-    Route::middleware(['role:KABAG,HRD', 'permission:leave.reject'])->group(function () {
+    Route::middleware(['role:KABAG,DIREKTUR,HRD,PD_I,PD_II,PD_III', 'permission:leave.reject'])->group(function () {
         Route::post('leaves/{leave}/reject', [LeaveController::class, 'reject']);
     });
     Route::get('leave-types', [LeaveTypeController::class, 'index']);
@@ -125,6 +129,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('calendar-view', [CalendarViewController::class, 'index']);
     Route::get('work-schedules', [WorkScheduleController::class, 'index']);
     Route::get('leave-balances/employee/{employeeId}', [LeaveBalanceController::class, 'byEmployee'])->middleware('permission:leave.view');
+    // Ringkasan saldo cuti seluruh pegawai — hanya HRD & pimpinan (KABAG/DOSEN/PEGAWAI 403).
+    Route::get('leave-balances', [LeaveBalanceController::class, 'index'])
+        ->middleware(['role:HRD,DIREKTUR,PD_I,PD_II,PD_III', 'permission:leave.view']);
     Route::get('positions', function () {
         return response()->json(['success' => true, 'data' => \App\Models\Position::where('is_active', true)->get()]);
     });
@@ -155,4 +162,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile/position-histories', [ProfilePositionHistoryController::class, 'store']);
     Route::put('/profile/position-histories/{positionHistory}', [ProfilePositionHistoryController::class, 'update']);
     Route::delete('/profile/position-histories/{positionHistory}', [ProfilePositionHistoryController::class, 'destroy']);
+    Route::get('/profile/certifications', [ProfileCertificationController::class, 'index']);
+    Route::post('/profile/certifications', [ProfileCertificationController::class, 'store']);
+    Route::put('/profile/certifications/{certification}', [ProfileCertificationController::class, 'update']);
+    Route::delete('/profile/certifications/{certification}', [ProfileCertificationController::class, 'destroy']);
+    Route::get('/profile/sk-records', [ProfileSkRecordController::class, 'index']);
+    Route::post('/profile/sk-records', [ProfileSkRecordController::class, 'store']);
+    Route::put('/profile/sk-records/{skRecord}', [ProfileSkRecordController::class, 'update']);
+    Route::delete('/profile/sk-records/{skRecord}', [ProfileSkRecordController::class, 'destroy']);
 });

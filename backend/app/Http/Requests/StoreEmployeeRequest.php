@@ -17,7 +17,8 @@ class StoreEmployeeRequest extends FormRequest
         return [
             'organizational_unit_id' => ['nullable', 'exists:organizational_units,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
-            'nik' => ['required', 'string', 'size:16', 'regex:/^[0-9]{16}$/', 'unique:employees,nik', 'unique:users,nik'],
+            'supervisor_id' => ['nullable', 'exists:employees,id'],
+            'nik' => ['required', 'string', 'size:9', 'regex:/^[0-9]{9}$/', 'unique:employees,nik', 'unique:users,nik'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'string', Rule::in(['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III', 'KABAG', 'DOSEN', 'PEGAWAI'])],
             'nama_lengkap' => ['required', 'string', 'max:150'],
@@ -50,10 +51,10 @@ class StoreEmployeeRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nik.required' => 'NIK wajib diisi.',
-            'nik.size' => 'NIK harus 16 digit.',
-            'nik.regex' => 'NIK harus 16 digit numerik (hanya angka).',
-            'nik.unique' => 'NIK sudah terdaftar, gunakan NIK lain.',
+            'nik.required' => 'Nomor Induk Kepegawaian wajib diisi.',
+            'nik.size' => 'Nomor Induk Kepegawaian harus tepat 9 digit angka.',
+            'nik.regex' => 'Nomor Induk Kepegawaian hanya boleh berisi angka.',
+            'nik.unique' => 'Nomor Induk Kepegawaian sudah terdaftar, gunakan yang lain.',
             'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
             'tanggal_masuk_kerja.required' => 'Tanggal masuk wajib diisi.',
             'password.required' => 'Kata sandi wajib diisi.',

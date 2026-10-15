@@ -7,32 +7,35 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, 'ProfilePage.tsx'), 'utf-8');
 
-test('menampilkan lima tab profil', () => {
-  for (const tab of ['Data Pribadi', 'Pendidikan', 'Pangkat & Fungsional', 'Mata Kuliah', 'Penelitian & Pernyataan']) {
+test('menampilkan enam tab profil (termasuk Mata Kuliah)', () => {
+  for (const tab of ['Data Pribadi', 'Pendidikan', 'Sertifikasi & Pelatihan', 'Pangkat & Fungsional', 'Mata Kuliah', 'Penelitian & Pernyataan']) {
     assert.ok(src.includes(tab), `tab ${tab} hilang`);
   }
 });
 
-test('menyembunyikan tab Penelitian & Pernyataan untuk non-dosen via is_dosen saja', () => {
+test('tab dosen ditentukan via role DOSEN (bukan hanya kolom is_dosen)', () => {
   assert.ok(src.includes('is_dosen'), 'flag is_dosen hilang');
   assert.ok(src.includes('isDosen'), 'penanda isDosen hilang');
+  assert.ok(src.includes("=== 'DOSEN'"), 'penentuan dosen dari role DOSEN hilang');
   assert.ok(src.includes('Penelitian & Pernyataan'), 'tab penelitian hilang');
   assert.ok(!src.includes('jenis_pegawai'), 'referensi jenis_pegawai harus hilang');
 });
 
-test('membatasi tab Mata Kuliah hanya untuk Dosen/Pegawai', () => {
-  assert.ok(src.includes('isPegawai'), 'penanda isPegawai hilang');
-  assert.ok(src.includes('is_pegawai'), 'flag is_pegawai hilang');
-  assert.ok(src.includes('{isPegawai && <TabsTrigger value="matkul">'), 'tab matkul tidak dikondisikan isPegawai');
-  assert.ok(src.includes('enabled: isPegawai'), 'query matkul tidak dibatasi isPegawai');
-});
-
-test('menandai field identitas/resmi dengan Hanya HRD', () => {
-  assert.ok(src.includes('Hanya HRD'), 'tanda Hanya HRD hilang');
+test('tab Mata Kuliah ada dan hanya untuk Dosen', () => {
+  assert.ok(src.includes('Mata Kuliah'), 'tab Mata Kuliah hilang');
+  assert.ok(src.includes('value="matkul"'), 'TabsTrigger/TabsContent matkul hilang');
+  assert.ok(src.includes('{isDosen && <TabsTrigger value="matkul">'), 'tab matkul tidak dikondisikan isDosen');
+  assert.ok(src.includes('enabled: isDosen'), 'query matkul tidak dibatasi isDosen');
 });
 
 test('mengonsumsi endpoint profil Tasks 3-6', () => {
-  for (const ep of ['/profile/education', '/profile/functional', '/profile/teaching-assignments']) {
+  for (const ep of ['/profile/education', '/profile/functional', '/profile/certifications']) {
+    assert.ok(src.includes(ep), `endpoint ${ep} hilang`);
+  }
+});
+
+test('mengonsumsi endpoint profil Tasks 3-6', () => {
+  for (const ep of ['/profile/education', '/profile/functional', '/profile/certifications']) {
     assert.ok(src.includes(ep), `endpoint ${ep} hilang`);
   }
 });

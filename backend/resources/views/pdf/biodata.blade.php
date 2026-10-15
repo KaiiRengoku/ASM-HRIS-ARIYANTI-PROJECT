@@ -22,7 +22,7 @@
     <h2>A. DATA PRIBADI</h2>
     <div>
         <div class="row"><span class="label">Nama Lengkap</span> {{ trim(($employee->gelar_depan ? $employee->gelar_depan.' ' : '').$employee->nama_lengkap.($employee->gelar_belakang ? ', '.$employee->gelar_belakang : '')) }}</div>
-        <div class="row"><span class="label">NIK</span> {{ $employee->nik }}</div>
+        <div class="row"><span class="label">Nomor Induk Kepegawaian</span> {{ $employee->nik }}</div>
         <div class="row"><span class="label">Tempat, Tanggal Lahir</span> {{ $employee->tempat_lahir ?? '-' }}, {{ $employee->tanggal_lahir ?? '-' }}</div>
         <div class="row"><span class="label">Jenis Kelamin</span> {{ $employee->jenis_kelamin === 'L' ? 'Laki-laki' : ($employee->jenis_kelamin === 'P' ? 'Perempuan' : '-') }}</div>
         <div class="row"><span class="label">Agama</span> {{ $employee->agama ?? '-' }}</div>
@@ -54,10 +54,8 @@
         <div class="row"><span class="label">NIP</span> {{ $employee->nip ?? '-' }}</div>
         <div class="row"><span class="label">NIDN</span> {{ $employee->nidn ?? '-' }}</div>
         <div class="row"><span class="label">Status Kepegawaian</span> {{ $employee->functional?->status_kepegawaian_detail ?? $employee->status_kepegawaian ?? '-' }}</div>
-        <div class="row"><span class="label">Jabatan Fungsional</span> {{ $employee->functional?->jabatan_fungsional ?? '-' }}</div>
         <div class="row"><span class="label">Pangkat / Golongan</span> {{ $employee->functional?->pangkat ?? '-' }} / {{ $employee->functional?->golongan_ruang ?? '-' }}</div>
         <div class="row"><span class="label">TMT Pangkat</span> {{ $employee->functional?->tmt_pangkat ?? '-' }}</div>
-        <div class="row"><span class="label">Bidang Keahlian</span> {{ $employee->functional?->bidang_keahlian ?? '-' }}</div>
         <div class="row"><span class="label">Unit Kerja</span> {{ $employee->functional?->unit_kerja ?? $employee->organizationalUnit?->name ?? '-' }}</div>
         <div class="row"><span class="label">Jabatan</span> {{ $employee->position?->name ?? '-' }}</div>
         <div class="row"><span class="label">Tanggal Masuk</span> {{ $employee->tanggal_masuk_kerja ?? '-' }}</div>

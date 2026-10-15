@@ -36,7 +36,7 @@ class PermissionDrivenWriteTest extends TestCase
 
         // default tanpa employee.create → 403
         $this->actingAs($dir)->postJson('/api/employees', [
-            'nik' => '1234567890123458', 'nama_lengkap' => 'Baru',
+            'nik' => '447199001', 'nama_lengkap' => 'Baru',
             'email' => 'baru@example.com', 'password' => 'password123',
             'role' => 'PEGAWAI', 'tanggal_masuk_kerja' => '2024-01-01',
         ])->assertForbidden();
@@ -46,7 +46,7 @@ class PermissionDrivenWriteTest extends TestCase
         $dirRole->permissions()->attach(Permission::where('code', 'employee.create')->first());
 
         $this->actingAs($dir)->postJson('/api/employees', [
-            'nik' => '1234567890123458', 'nama_lengkap' => 'Baru',
+            'nik' => '447199001', 'nama_lengkap' => 'Baru',
             'email' => 'baru@example.com', 'password' => 'password123',
             'role' => 'PEGAWAI', 'tanggal_masuk_kerja' => '2024-01-01',
         ])->assertCreated();

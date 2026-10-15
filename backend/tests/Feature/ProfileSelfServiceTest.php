@@ -48,7 +48,7 @@ class ProfileSelfServiceTest extends TestCase
         $this->actingAs($staf)->getJson('/api/profile')->assertOk()->assertJsonPath('data.is_dosen', false);
     }
 
-    public function test_user_updates_only_permitted_contact_fields(): void
+    public function test_user_updates_own_identity_and_contact_fields(): void
     {
         $user = $this->buatUserDenganPegawai('Staf');
         $employee = $user->employee;
@@ -57,14 +57,15 @@ class ProfileSelfServiceTest extends TestCase
             'alamat_ktp' => 'Jl. Merdeka 10',
             'alamat_domisili' => 'Jl. Domisili 2',
             'nomor_hp' => '081234567890',
-            'nama_lengkap' => 'Tidak boleh berubah',
+            'nama_lengkap' => 'Nama Baru',
         ]);
 
         $response->assertOk();
         $this->assertSame('Jl. Merdeka 10', $employee->fresh()->alamat_ktp);
         $this->assertSame('Jl. Domisili 2', $employee->fresh()->alamat_domisili);
         $this->assertSame('081234567890', $employee->fresh()->nomor_hp);
-        $this->assertNotSame('Tidak boleh berubah', $employee->fresh()->nama_lengkap);
+        // Data identitas boleh diubah pemilik akun untuk dirinya sendiri.
+        $this->assertSame('Nama Baru', $employee->fresh()->nama_lengkap);
     }
 
     public function test_dosen_dapat_memperbarui_riwayat_penelitian(): void

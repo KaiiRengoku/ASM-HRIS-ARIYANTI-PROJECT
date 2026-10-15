@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { toast } from '@/components/ui/use-toast';
+import { extractErrorMessage } from '@/services/apiError';
 import { useAuthStore } from '@/stores/authStore';
+import { isIzin } from '@/features/leave/leaveTypes';
+
+// Plafon ukuran lampiran — harus sama dengan validasi backend (max:51200 = 50 MB).
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_FILE_SIZE_LABEL = '50 MB';
 
 const leaveSchema = z.object({
     employee_id: z.string().optional(),
@@ -28,15 +34,14 @@ const fetchEmployees = async () => {
     return res.data.data;
 };
 
-const fetchLeaveTypes = async () => {
-    // We don't have an endpoint for leave types yet; we'll hardcode or we can create a simple endpoint.
-    // For now, we'll use the seeder data. We'll create a quick endpoint if needed.
-    // Let's just assume we have leave types from seeder. We'll fetch from a new route maybe.
-    // For simplicity, we'll just return static list or we can add a route. Let's add a route.
-    // But we can also just fetch from the database via a simple endpoint. We'll add a new route for leave-types.
-    // For now, we'll just return an empty array and let the user select from a static list if not available.
-    // Better: we'll create a quick leave-types endpoint.
-    const res = await api.get('/leave-types');
+interface LeaveTypeOption {
+    id: number;
+    code: string;
+    name: string;
+}
+
+const fetchLeaveTypes = async (): Promise<LeaveTypeOption[]> => {
+    const res = await api.get<{ data: LeaveTypeOption[] }>('/leave-types');
     return res.data.data;
 };
 
@@ -47,9 +52,14 @@ const submitLeave = async (data: any) => {
 
 export default function LeaveFormPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [file, setFile] = useState<File | null>(null);
-    const { hasPermission, user } = useAuthStore();
+    const { hasPermission, hasRole, user } = useAuthStore();
     const isHrd = hasPermission('leave.update');
+
+    // Kategori dari URL (?category=cuti|izin). Dosen dipaksa hanya Izin.
+    const paramCategory = searchParams.get('category');
+    const category: 'cuti' | 'izin' | null = hasRole('DOSEN') ? 'izin' : (paramCategory === 'izin' || paramCategory === 'cuti' ? paramCategory : null);
 
     const { data: employees, isLoading: loadingEmployees } = useQuery({
         queryKey: ['employees-list'],
@@ -62,6 +72,14 @@ export default function LeaveFormPage() {
         queryFn: fetchLeaveTypes,
     });
 
+    // Saring tipe sesuai kategori: 'izin' hanya tipe izin, 'cuti' hanya non-izin,
+    // null (tanpa param) tampilkan semua seperti sebelumnya.
+    const filteredLeaveTypes = (leaveTypes ?? []).filter((type) => {
+        if (category === 'izin') return isIzin(type.code);
+        if (category === 'cuti') return !isIzin(type.code);
+        return true;
+    });
+
     const { register, handleSubmit, setValue, formState: { errors } } = useForm<LeaveForm>({
         resolver: zodResolver(leaveSchema),
     });
@@ -72,10 +90,19 @@ export default function LeaveFormPage() {
             toast({ title: 'Berhasil', description: 'Pengajuan cuti berhasil dikirim.' });
             navigate('/cuti');
         },
-        onError: () => toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' }),
+        onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e), variant: 'destructive' }),
     });
 
     const onSubmit = (data: LeaveForm) => {
+        // Cegah unggahan besar sebelum dikirim: pengguna dapat pesan jelas, server tidak dibebani.
+        if (file && file.size > MAX_FILE_SIZE) {
+            toast({
+                title: 'File terlalu besar',
+                description: `Ukuran file melebihi ${MAX_FILE_SIZE_LABEL}. Silakan kompres atau pilih file lebih kecil.`,
+                variant: 'destructive',
+            });
+            return;
+        }
         const formData = new FormData();
         if (data.employee_id) formData.append('employee_id', data.employee_id);
         formData.append('leave_type_id', data.leave_type_id);
@@ -125,7 +152,7 @@ export default function LeaveFormPage() {
                                     <SelectValue placeholder="Pilih jenis" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {leaveTypes?.map((type: any) => (
+                                    {filteredLeaveTypes.map((type) => (
                                         <SelectItem key={type.id} value={String(type.id)}>{type.name}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -151,7 +178,7 @@ export default function LeaveFormPage() {
                         <div>
                             <Label>Lampiran (opsional)</Label>
                             <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                            <p className="text-xs text-muted-foreground">Maksimal 10 MB, format PDF/JPG/PNG</p>
+                            <p className="text-xs text-muted-foreground">Maksimal {MAX_FILE_SIZE_LABEL}, format PDF/JPG/PNG</p>
                         </div>
                         <div className="flex gap-2">
                             <Button type="submit" disabled={mutation.isPending}>

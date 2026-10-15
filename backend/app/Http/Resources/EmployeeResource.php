@@ -13,8 +13,14 @@ class EmployeeResource extends JsonResource
             'id' => $this->id,
             'organizational_unit_id' => $this->organizational_unit_id,
             'position_id' => $this->position_id,
+            'supervisor_id' => $this->supervisor_id,
             'organizational_unit' => $this->whenLoaded('organizationalUnit', fn() => $this->organizationalUnit?->name),
             'position' => $this->whenLoaded('position', fn() => $this->position?->name),
+            'supervisor' => $this->whenLoaded('supervisor', fn() => $this->supervisor ? [
+                'id' => $this->supervisor->id,
+                'nama_lengkap' => $this->supervisor->nama_lengkap,
+                'nik' => $this->supervisor->nik,
+            ] : null),
             'nik' => $this->nik,
             'nama_lengkap' => $this->nama_lengkap,
             'gelar_depan' => $this->gelar_depan,
@@ -48,6 +54,7 @@ class EmployeeResource extends JsonResource
                 'tahun_masuk' => $e->tahun_masuk,
                 'tahun_lulus' => $e->tahun_lulus,
             ])),
+            'certifications' => $this->whenLoaded('certifications'),
             'position_histories' => $this->whenLoaded('positionHistories'),
             'has_account' => $this->whenLoaded('user', fn() => $this->user !== null),
             'account' => $this->whenLoaded('user', fn() => $this->user ? [

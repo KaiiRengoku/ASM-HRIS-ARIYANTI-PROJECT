@@ -29,9 +29,11 @@ class NotificationController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function markAsRead(Notification $notification)
+    public function markAsRead(Request $request, Notification $notification)
     {
-        if ($notification->user_id !== auth()->id()) {
+        // auth()->id() mengembalikan NIK (User::getAuthIdentifierName), bukan PK,
+        // sehingga perbandingan selalu gagal. Pakai PK user dari request.
+        if ((int) $notification->user_id !== (int) $request->user()->id) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
         $notification->update(['read_at' => now()]);

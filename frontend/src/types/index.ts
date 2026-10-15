@@ -32,7 +32,22 @@ export interface LeaveRequest {
   end_date: string;
   total_days: number;
   reason?: string;
-  status: "Draft" | "Pending" | "Approved" | "Rejected" | "Revision" | "Cancelled" | "Completed";
+  status:
+    | "Draft"
+    | "Pending"
+    | "Disetujui Atasan Langsung"
+    | "Disetujui Kepala Bagian"
+    | "Disetujui Direktur"
+    | "Disetujui HRD"
+    | "Ditolak Atasan Langsung"
+    | "Ditolak Kepala Bagian"
+    | "Ditolak Direktur"
+    | "Ditolak HRD"
+    | "Approved"
+    | "Rejected"
+    | "Revision"
+    | "Cancelled"
+    | "Completed";
   submitted_at?: string;
   finalized_at?: string;
   cancelled_at?: string;

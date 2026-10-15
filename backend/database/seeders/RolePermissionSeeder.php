@@ -20,24 +20,28 @@ class RolePermissionSeeder extends Seeder
             'employee.view', 'employee.export',
             'document.view', 'document.upload', 'document.delete',
             'leave.view', 'leave.export', 'leave.create', 'leave.cancel',
+            'leave.approve', 'leave.reject',
             'report.view', 'report.export',
         ],
         'PD_I' => [
             'employee.view', 'employee.export',
             'document.view', 'document.upload', 'document.delete',
             'leave.view', 'leave.export', 'leave.create', 'leave.cancel',
+            'leave.approve', 'leave.reject',
             'report.view', 'report.export',
         ],
         'PD_II' => [
             'employee.view', 'employee.export',
             'document.view', 'document.upload', 'document.delete',
             'leave.view', 'leave.export', 'leave.create', 'leave.cancel',
+            'leave.approve', 'leave.reject',
             'report.view', 'report.export',
         ],
         'PD_III' => [
             'employee.view', 'employee.export',
             'document.view', 'document.upload', 'document.delete',
             'leave.view', 'leave.export', 'leave.create', 'leave.cancel',
+            'leave.approve', 'leave.reject',
             'report.view', 'report.export',
         ],
         'KABAG' => [

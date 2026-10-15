@@ -8,7 +8,7 @@ class ProfileFunctionalController extends Controller
 {
     public function show(Request $request)
     {
-        $employee = $request->user()->employee;
+        $employee = $request->user()->employee ?? abort(404, 'Akun ini tidak terhubung ke data pegawai.');
 
         return response()->json(['success' => true, 'data' => $employee->functional]);
     }
@@ -16,19 +16,17 @@ class ProfileFunctionalController extends Controller
     public function update(Request $request)
     {
         $validated = $request->validate([
-            'status_kepegawaian_detail' => 'nullable|in:PNS,DPK,Non-PNS',
-            'jabatan_fungsional' => 'nullable|in:Asisten Ahli,Lektor,Lektor Kepala,Guru Besar',
+            'status_kepegawaian_detail' => 'nullable|in:Tetap,Tidak Tetap',
             'pangkat' => 'nullable|string|max:100',
             'golongan_ruang' => 'nullable|string|max:50',
             'tmt_pangkat' => 'nullable|date',
-            'bidang_keahlian' => 'nullable|string|max:150',
             'unit_kerja' => 'nullable|string|max:150',
             'sertifikasi' => 'nullable|string',
             'riwayat_penelitian_pengabdian' => 'nullable|string',
             'pernyataan' => 'nullable|boolean',
         ]);
 
-        $employee = $request->user()->employee;
+        $employee = $request->user()->employee ?? abort(404, 'Akun ini tidak terhubung ke data pegawai.');
 
         $data = collect($validated)->except(['pernyataan'])->toArray();
 

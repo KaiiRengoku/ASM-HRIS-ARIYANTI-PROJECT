@@ -6,6 +6,7 @@ import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
 import MainLayout from "@/layouts/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import ForbiddenPage from "@/components/auth/ForbiddenPage";
+import RoleHomeRedirect from "@/components/auth/RoleHomeRedirect";
 import HRDDashboard from "@/features/dashboard/pages/HRDDashboard";
 import DirekturDashboard from "@/features/dashboard/pages/DirekturDashboard";
 import PD1Dashboard from "@/features/dashboard/pages/PD1Dashboard";
@@ -33,6 +34,7 @@ import HakAksesPage from "@/features/access/pages/HakAksesPage";
 
 const HRD = ["HRD"];
 const ALL_ROLES = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III", "KABAG", "DOSEN", "PEGAWAI"];
+const REPORT_ROLES = ["HRD", "DIREKTUR", "PD_I", "PD_II", "PD_III"];
 
 const protectedRoutes = [
   { path: "/dashboard/hrd", element: <HRDDashboard />, roles: HRD },
@@ -52,8 +54,8 @@ const protectedRoutes = [
   { path: "/cuti/create", element: <LeaveFormPage />, roles: ALL_ROLES, permissions: ["leave.create"] },
   { path: "/cuti/:id", element: <LeaveDetailPage />, roles: ALL_ROLES, permissions: ["leave.view"] },
   { path: "/kalender", element: <CalendarPage />, roles: ALL_ROLES },
-  { path: "/laporan", element: <ReportPage />, roles: ALL_ROLES, permissions: ["report.view"] },
-  { path: "/approval", element: <ApprovalPage />, roles: ["HRD", "KABAG"], permissions: ["leave.approve"] },
+  { path: "/laporan", element: <ReportPage />, roles: REPORT_ROLES, permissions: ["report.view"] },
+  { path: "/approval", element: <ApprovalPage />, roles: ["HRD", "KABAG", "DIREKTUR", "PD_I", "PD_II", "PD_III"], permissions: ["leave.approve"] },
   { path: "/pengguna", element: <Navigate to="/pegawai" replace /> },
   { path: "/cuti/saldo/adjust", element: <LeaveBalanceAdjustPage />, roles: ALL_ROLES, permissions: ["leave.adjust_balance"] },
   { path: "/work-schedules", element: <WorkSchedulePage />, roles: ALL_ROLES },
@@ -92,5 +94,5 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  { path: "/", element: <Navigate to="/dashboard/hrd" replace /> },
+  { path: "/", element: <RoleHomeRedirect /> },
 ]);

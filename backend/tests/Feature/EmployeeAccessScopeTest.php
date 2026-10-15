@@ -37,8 +37,8 @@ class EmployeeAccessScopeTest extends TestCase
 
     public function test_kabag_dan_peg_ditolak_di_list_pegawai(): void
     {
-        $kabag = $this->buatUser('1234567890123456', 'KABAG');
-        $peg = $this->buatUser('1234567890123457', 'PEGAWAI');
+        $kabag = $this->buatUser('123456701', 'KABAG');
+        $peg = $this->buatUser('123456702', 'PEGAWAI');
 
         $this->actingAs($kabag)->getJson('/api/employees')->assertForbidden();
         $this->actingAs($peg)->getJson('/api/employees')->assertForbidden();
@@ -46,8 +46,8 @@ class EmployeeAccessScopeTest extends TestCase
 
     public function test_kabag_dan_peg_ditolak_di_detail_pegawai(): void
     {
-        $kabag = $this->buatUser('1234567890123456', 'KABAG');
-        $peg = $this->buatUser('1234567890123457', 'PEGAWAI');
+        $kabag = $this->buatUser('123456701', 'KABAG');
+        $peg = $this->buatUser('123456702', 'PEGAWAI');
 
         $this->actingAs($kabag)->getJson("/api/employees/{$kabag->employee_id}")->assertForbidden();
         $this->actingAs($peg)->getJson("/api/employees/{$peg->employee_id}")->assertForbidden();
@@ -56,10 +56,27 @@ class EmployeeAccessScopeTest extends TestCase
     public function test_pimpinan_tetap_bisa_akses_list_dan_detail(): void
     {
         foreach (['HRD', 'DIREKTUR', 'PD_I', 'PD_II', 'PD_III'] as $i => $role) {
-            $nik = '1234567890123' . str_pad((string) (100 + $i), 3, '0', STR_PAD_LEFT);
+            $nik = '123456' . str_pad((string) (100 + $i), 3, '0', STR_PAD_LEFT);
             $user = $this->buatUser($nik, $role);
             $this->actingAs($user)->getJson('/api/employees')->assertOk();
             $this->actingAs($user)->getJson("/api/employees/{$user->employee_id}")->assertOk();
         }
+    }
+
+    public function test_filter_tanpa_atasan_hanya_menampilkan_yang_belum_dipetakan(): void
+    {
+        $hrd = $this->buatUser('123456701', 'HRD');
+        $atasan = $this->buatUser('123456702', 'KABAG');
+        $punyaAtasan = $this->buatUser('123456703', 'PEGAWAI');
+        $punyaAtasan->employee->update(['supervisor_id' => $atasan->employee_id]);
+        $belumDipetakan = $this->buatUser('123456704', 'PEGAWAI');
+
+        $ids = array_column(
+            $this->actingAs($hrd)->getJson('/api/employees?tanpa_atasan=1')->assertOk()->json('data'),
+            'id'
+        );
+
+        $this->assertContains($belumDipetakan->employee_id, $ids);
+        $this->assertNotContains($punyaAtasan->employee_id, $ids);
     }
 }

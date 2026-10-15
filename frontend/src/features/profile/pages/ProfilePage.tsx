@@ -25,6 +25,7 @@ interface Employee {
     jenis_kelamin?: string | null;
     agama?: string | null;
     status_pernikahan?: string | null;
+    position?: { id: number; name: string; code?: string | null } | null;
     alamat_ktp?: string | null;
     alamat_domisili?: string | null;
     nomor_hp?: string | null;
@@ -56,17 +57,40 @@ interface EducationData {
 
 interface FunctionalData {
     status_kepegawaian_detail?: string | null;
-    jabatan_fungsional?: string | null;
     pangkat?: string | null;
     golongan_ruang?: string | null;
     tmt_pangkat?: string | null;
-    bidang_keahlian?: string | null;
     unit_kerja?: string | null;
     sertifikasi?: string | null;
     riwayat_penelitian_pengabdian?: string | null;
     pernyataan_disetujui_pada?: string | null;
 }
 
+interface CertificationItem {
+    id: number;
+    category: 'SERTIFIKAT' | 'PELATIHAN' | 'SEMINAR' | 'NONFORMAL';
+    name?: string | null;
+    organizer?: string | null;
+    certificate_number?: string | null;
+    issued_at?: string | null;
+    valid_until?: string | null;
+    duration?: string | null;
+    participant_role?: string | null;
+    description?: string | null;
+    document_id?: number | null;
+    document?: { id: number; file_name?: string | null } | null;
+}
+interface SkRecordItem {
+    id: number;
+    jenis_sk: 'JABATAN_FUNGSIONAL' | 'ANGKA_KREDIT_PAK' | 'KENAIKAN_PANGKAT';
+    nomor_sk?: string | null;
+    tanggal_sk?: string | null;
+    tmt?: string | null;
+    pejabat_penetap?: string | null;
+    keterangan?: string | null;
+    document_id?: number | null;
+    document?: { id: number; file_name?: string | null } | null;
+}
 interface TeachingAssignment {
     id: number;
     kode_matkul?: string | null;
@@ -76,6 +100,70 @@ interface TeachingAssignment {
     program_studi?: string | null;
     kelas?: string | null;
 }
+
+
+const CERT_CATEGORY_LABELS: Record<CertificationItem['category'], string> = {
+    SERTIFIKAT: 'Sertifikat',
+    PELATIHAN: 'Pelatihan',
+    SEMINAR: 'Seminar',
+    NONFORMAL: 'Non-Formal',
+};
+
+// Kategori yang sudah punya blok/form sendiri di tab Sertifikasi & Pelatihan.
+// Dikecualikan dari daftar & form generik agar tidak tampil dua kali (dobel).
+const BLOCKED_CATEGORIES: CertificationItem['category'][] = ['PELATIHAN', 'SEMINAR'];
+
+// ============================================================================
+// PEMETAAN PANGKAT OTOMATIS BERDASARKAN ROLE  (USULAN — MUDAH DIUBAH PEMILIK)
+// ----------------------------------------------------------------------------
+// Latar: pemilik memutuskan field "Pangkat" di tab Pangkat & Fungsional
+// diisi OTOMATIS dari role user dan TIDAK bisa diedit manual.
+// Nilai di bawah adalah USULAN DEFAULT berdasarkan Tabel Golongan/Pangkat PNS
+// Indonesia + struktur organisasi (lihat tabel positions di DB). Silakan
+// sesuaikan bila kebijakan kepegawaian ASM berbeda — cukup ubah satu tempat ini.
+// Catatan: "Golongan Ruang" TIDAK ikut otomatis (tetap input manual).
+// ============================================================================
+export const PANGKAT_BY_ROLE: Record<string, string> = {
+    DIREKTUR: 'Pembina',
+    PD_I: 'Penata Tk.I',
+    PD_II: 'Penata Tk.I',
+    PD_III: 'Penata Tk.I',
+    KABAG: 'Penata',
+    HRD: 'Penata Muda Tk.I',
+    DOSEN: 'Penata Muda',
+    PEGAWAI: 'Pengatur',
+};
+
+// Urutan prioritas bila user punya beberapa role (paling tinggi menang).
+const PANGKAT_ROLE_PRIORITY: string[] = ['DIREKTUR', 'PD_I', 'PD_II', 'PD_III', 'KABAG', 'HRD', 'DOSEN', 'PEGAWAI'];
+
+/** Menentukan pangkat otomatis dari daftar role user (fallback: string kosong). */
+export function pangkatDariRole(roles?: { name?: string; code?: string }[] | null): string {
+    const codes = (roles ?? []).map((r) => (r.code ?? r.name ?? '').toUpperCase());
+    for (const code of PANGKAT_ROLE_PRIORITY) {
+        if (codes.includes(code)) return PANGKAT_BY_ROLE[code] ?? '';
+    }
+    return '';
+}
+
+const SK_JENIS_LABELS: Record<SkRecordItem['jenis_sk'], string> = {
+    JABATAN_FUNGSIONAL: 'SK Jabatan Fungsional',
+    ANGKA_KREDIT_PAK: 'SK Angka Kredit (PAK)',
+    KENAIKAN_PANGKAT: 'SK Kenaikan Pangkat',
+};
+
+const identitasSchema = z.object({
+    nama_lengkap: z.string().max(150).optional(),
+    nip: z.string().regex(/^[0-9]{9}$/, 'NIP harus tepat 9 digit angka.').or(z.literal('')).optional(),
+    nidn: z.string().regex(/^[0-9]{10}$/, 'NIDN harus tepat 10 digit angka.').or(z.literal('')).optional(),
+    tempat_lahir: z.string().max(100).optional(),
+    tanggal_lahir: z.string().optional(),
+    jenis_kelamin: z.string().optional(),
+    agama: z.string().max(30).optional(),
+    status_pernikahan: z.string().optional(),
+});
+
+type IdentitasForm = z.infer<typeof identitasSchema>;
 
 const kontakSchema = z.object({
     alamat_ktp: z.string().optional(),
@@ -102,11 +190,9 @@ type PendidikanForm = z.infer<typeof pendidikanSchema>;
 
 const fungsionalSchema = z.object({
     status_kepegawaian_detail: z.string().optional(),
-    jabatan_fungsional: z.string().optional(),
     pangkat: z.string().optional(),
     golongan_ruang: z.string().optional(),
     tmt_pangkat: z.string().optional(),
-    bidang_keahlian: z.string().optional(),
     unit_kerja: z.string().optional(),
     sertifikasi: z.string().optional(),
 });
@@ -135,6 +221,10 @@ const toStr = (v?: string | number | null) => (v === null || v === undefined ? '
 export default function ProfilePage() {
     const queryClient = useQueryClient();
     const [editing, setEditing] = useState(false);
+    const [certDocId, setCertDocId] = useState('none');
+    const [certCategory, setCertCategory] = useState('SERTIFIKAT');
+    const [certFile, setCertFile] = useState<File | null>(null);
+    const [skJenis, setSkJenis] = useState<SkRecordItem['jenis_sk']>('JABATAN_FUNGSIONAL');
 
     const { data: profile, isLoading } = useQuery({
         queryKey: ['profile'],
@@ -161,8 +251,12 @@ export default function ProfilePage() {
     });
 
     const employee = profile?.employee ?? null;
-    const isDosen = profile?.is_dosen ?? false;
-    const isPegawai = profile?.is_pegawai ?? (isDosen || (profile?.roles ?? []).some((r) => ['PEGAWAI', 'DOSEN'].includes(r.code ?? r.name)));
+    // Penentuan dosen HARUS melihat role 'DOSEN' juga, bukan hanya kolom
+    // employees.is_dosen: kolom itu di database praktis kosong (semua 0), sehingga
+    // tanpa fallback ke role, tab "Mata Kuliah" & "Penelitian & Pernyataan" tak pernah tampil.
+    const rolesProfil = profile?.roles ?? [];
+    const punyaRoleDosen = rolesProfil.some((r) => (r.code ?? r.name) === 'DOSEN');
+    const isDosen = Boolean(profile?.is_dosen) || punyaRoleDosen;
 
     const { data: assignments } = useQuery({
         queryKey: ['profile-teaching-assignments'],
@@ -170,9 +264,33 @@ export default function ProfilePage() {
             const res = await api.get('/profile/teaching-assignments');
             return res.data.data as TeachingAssignment[];
         },
-        enabled: isPegawai,
+        enabled: isDosen,
     });
 
+    const { data: certifications } = useQuery({
+        queryKey: ['profile-certifications'],
+        queryFn: async () => {
+            const res = await api.get('/profile/certifications');
+            return res.data.data as CertificationItem[];
+        },
+    });
+
+    const { data: skRecords } = useQuery({
+        queryKey: ['profile-sk-records'],
+        queryFn: async () => {
+            const res = await api.get('/profile/sk-records');
+            return res.data.data as SkRecordItem[];
+        },
+    });
+
+    const { data: myDocs } = useQuery({
+        queryKey: ['profile-documents'],
+        queryFn: async () => {
+            const res = await api.get('/documents', { params: { per_page: 100 } });
+            return (res.data.data ?? []) as { id: number; file_name?: string | null; document_type?: string | null }[];
+        },
+    });
+    const identitasForm = useForm<IdentitasForm>({ resolver: zodResolver(identitasSchema) });
     const kontakForm = useForm<KontakForm>({ resolver: zodResolver(kontakSchema) });
     const pendidikanForm = useForm<PendidikanForm>({ resolver: zodResolver(pendidikanSchema) });
     const fungsionalForm = useForm<FungsionalForm>({ resolver: zodResolver(fungsionalSchema) });
@@ -189,6 +307,21 @@ export default function ProfilePage() {
     }, [employee, kontakForm]);
 
     useEffect(() => {
+        if (employee) {
+            identitasForm.reset({
+                nama_lengkap: employee.nama_lengkap ?? '',
+                nip: employee.nip ?? '',
+                nidn: employee.nidn ?? '',
+                tempat_lahir: employee.tempat_lahir ?? '',
+                tanggal_lahir: employee.tanggal_lahir ? String(employee.tanggal_lahir).slice(0, 10) : '',
+                jenis_kelamin: employee.jenis_kelamin ?? '',
+                agama: employee.agama ?? '',
+                status_pernikahan: employee.status_pernikahan ?? '',
+            });
+        }
+    }, [employee, identitasForm]);
+
+    useEffect(() => {
         if (education) {
             pendidikanForm.reset({
                 S1: { nama_pt: education.S1?.nama_pt ?? '', jurusan: education.S1?.jurusan ?? '', tahun_masuk: toStr(education.S1?.tahun_masuk), tahun_lulus: toStr(education.S1?.tahun_lulus) },
@@ -201,15 +334,14 @@ export default function ProfilePage() {
     useEffect(() => {
         fungsionalForm.reset({
             status_kepegawaian_detail: functional?.status_kepegawaian_detail ?? '',
-            jabatan_fungsional: functional?.jabatan_fungsional ?? '',
-            pangkat: functional?.pangkat ?? '',
+            // Pangkat OTOMATIS dari role (tidak bisa diedit) — lihat PANGKAT_BY_ROLE.
+            pangkat: pangkatDariRole(profile?.roles),
             golongan_ruang: functional?.golongan_ruang ?? '',
             tmt_pangkat: functional?.tmt_pangkat ? String(functional.tmt_pangkat).slice(0, 10) : '',
-            bidang_keahlian: functional?.bidang_keahlian ?? '',
             unit_kerja: functional?.unit_kerja ?? '',
             sertifikasi: functional?.sertifikasi ?? '',
         });
-    }, [functional, fungsionalForm]);
+    }, [functional, fungsionalForm, profile]);
 
     useEffect(() => {
         penelitianForm.reset({
@@ -219,6 +351,27 @@ export default function ProfilePage() {
     }, [functional, penelitianForm]);
 
     const exitEdit = () => setEditing(false);
+
+
+    const onIdentitas = async (data: IdentitasForm) => {
+        try {
+            await api.put('/profile', {
+                nama_lengkap: data.nama_lengkap || null,
+                nip: data.nip || null,
+                nidn: data.nidn || null,
+                tempat_lahir: data.tempat_lahir || null,
+                tanggal_lahir: data.tanggal_lahir || null,
+                jenis_kelamin: data.jenis_kelamin || null,
+                agama: data.agama || null,
+                status_pernikahan: data.status_pernikahan || null,
+            });
+            toast({ title: 'Berhasil', description: 'Data identitas diperbarui.' });
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
+            exitEdit();
+        } catch {
+            toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' });
+        }
+    };
 
     const onKontak = async (data: KontakForm) => {
         try {
@@ -254,11 +407,10 @@ export default function ProfilePage() {
         try {
             await api.put('/profile/functional', {
                 status_kepegawaian_detail: data.status_kepegawaian_detail || null,
-                jabatan_fungsional: data.jabatan_fungsional || null,
-                pangkat: data.pangkat || null,
+                // Pangkat dikirim otomatis dari role (field read-only di UI).
+                pangkat: pangkatDariRole(profile?.roles) || null,
                 golongan_ruang: data.golongan_ruang || null,
                 tmt_pangkat: data.tmt_pangkat || null,
-                bidang_keahlian: data.bidang_keahlian || null,
                 unit_kerja: data.unit_kerja || null,
                 sertifikasi: data.sertifikasi || null,
             });
@@ -306,9 +458,10 @@ export default function ProfilePage() {
                 <TabsList>
                     <TabsTrigger value="pribadi">Data Pribadi</TabsTrigger>
                     <TabsTrigger value="pendidikan">Pendidikan</TabsTrigger>
+                    <TabsTrigger value="sertifikasi">Sertifikasi & Pelatihan</TabsTrigger>
                     <TabsTrigger value="fungsional">Pangkat & Fungsional</TabsTrigger>
+                    {isDosen && <TabsTrigger value="matkul">Mata Kuliah</TabsTrigger>}
                     <TabsTrigger value="jabatan">Riwayat Jabatan</TabsTrigger>
-                    {isPegawai && <TabsTrigger value="matkul">Mata Kuliah</TabsTrigger>}
                     {isDosen && <TabsTrigger value="penelitian">Penelitian & Pernyataan</TabsTrigger>}
                 </TabsList>
 
@@ -318,10 +471,11 @@ export default function ProfilePage() {
                             <CardTitle>Informasi Akun</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <p><span className="font-medium">NIK:</span> {profile.nik}</p>
+                            <p><span className="font-medium">Nomor Induk Kepegawaian:</span> {profile.nik}</p>
                             <p><span className="font-medium">Nama:</span> {profile.name}</p>
                             <p><span className="font-medium">Email:</span> {profile.email}</p>
                             <p><span className="font-medium">Role:</span> {profile.roles?.[0]?.name || '-'}</p>
+                            <p><span className="font-medium">Jabatan:</span> {employee?.position?.name || '-'}</p>
                         </CardContent>
                     </Card>
 
@@ -329,15 +483,72 @@ export default function ProfilePage() {
                         <CardHeader>
                             <CardTitle>Data Identitas</CardTitle>
                         </CardHeader>
-                        <CardContent className="grid gap-4 sm:grid-cols-2">
-                            <Row label="Nama Lengkap" value={employee?.nama_lengkap} />
-                            <Row label="NIP" value={employee?.nip} />
-                            <Row label="NIDN" value={employee?.nidn} />
-                            <Row label="Tempat Lahir" value={employee?.tempat_lahir} />
-                            <Row label="Tanggal Lahir" value={employee?.tanggal_lahir} />
-                            <Row label="Jenis Kelamin" value={employee?.jenis_kelamin} />
-                            <Row label="Agama" value={employee?.agama} />
-                            <Row label="Status Pernikahan" value={employee?.status_pernikahan} />
+                        <CardContent>
+                            {editing ? (
+                                <form onSubmit={identitasForm.handleSubmit(onIdentitas)} className="space-y-4">
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <Label htmlFor="nama_lengkap">Nama Lengkap</Label>
+                                            <Input id="nama_lengkap" {...identitasForm.register('nama_lengkap')} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="nip">NIP</Label>
+                                            <Input id="nip" inputMode="numeric" {...identitasForm.register('nip')} />
+                                            {identitasForm.formState.errors.nip && <p className="text-sm text-destructive">{identitasForm.formState.errors.nip.message}</p>}
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="nidn">NIDN</Label>
+                                            <Input id="nidn" inputMode="numeric" {...identitasForm.register('nidn')} />
+                                            {identitasForm.formState.errors.nidn && <p className="text-sm text-destructive">{identitasForm.formState.errors.nidn.message}</p>}
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="tempat_lahir">Tempat Lahir</Label>
+                                            <Input id="tempat_lahir" {...identitasForm.register('tempat_lahir')} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="tanggal_lahir">Tanggal Lahir</Label>
+                                            <Input id="tanggal_lahir" type="date" {...identitasForm.register('tanggal_lahir')} />
+                                        </div>
+                                        <div>
+                                            <Label>Jenis Kelamin</Label>
+                                            <Select value={identitasForm.watch('jenis_kelamin') ?? ''} onValueChange={(v) => identitasForm.setValue('jenis_kelamin', v)}>
+                                                <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="L">Laki-laki</SelectItem>
+                                                    <SelectItem value="P">Perempuan</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="agama">Agama</Label>
+                                            <Input id="agama" {...identitasForm.register('agama')} placeholder="Islam" />
+                                        </div>
+                                        <div>
+                                            <Label>Status Pernikahan</Label>
+                                            <Select value={identitasForm.watch('status_pernikahan') ?? ''} onValueChange={(v) => identitasForm.setValue('status_pernikahan', v)}>
+                                                <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Kawin">Kawin</SelectItem>
+                                                    <SelectItem value="Belum Kawin">Belum Kawin</SelectItem>
+                                                    <SelectItem value="Cerai">Cerai</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <Button type="submit">Simpan</Button>
+                                </form>
+                            ) : (
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <Row label="Nama Lengkap" value={employee?.nama_lengkap} />
+                                    <Row label="NIP" value={employee?.nip} />
+                                    <Row label="NIDN" value={employee?.nidn} />
+                                    <Row label="Tempat Lahir" value={employee?.tempat_lahir} />
+                                    <Row label="Tanggal Lahir" value={employee?.tanggal_lahir} />
+                                    <Row label="Jenis Kelamin" value={employee?.jenis_kelamin === 'L' ? 'Laki-laki' : employee?.jenis_kelamin === 'P' ? 'Perempuan' : employee?.jenis_kelamin} />
+                                    <Row label="Agama" value={employee?.agama} />
+                                    <Row label="Status Pernikahan" value={employee?.status_pernikahan} />
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -424,6 +635,169 @@ export default function ProfilePage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                <TabsContent value="sertifikasi">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Sertifikasi, Pelatihan & Seminar</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {!certifications?.filter((c) => !BLOCKED_CATEGORIES.includes(c.category)).length ? (
+                                <p className="text-sm text-muted-foreground">Belum ada data sertifikasi/pelatihan.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {certifications.filter((c) => !BLOCKED_CATEGORIES.includes(c.category)).map((c) => (
+                                        <div key={c.id} className="rounded-md border p-3 text-sm">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="min-w-0 truncate font-medium">{c.name || '-'} <span className="text-muted-foreground">({CERT_CATEGORY_LABELS[c.category] ?? c.category})</span></p>
+                                                {editing && (
+                                                    <Button variant="ghost" size="sm" className="shrink-0" onClick={() => api.delete(`/profile/certifications/${c.id}`).then(() => {
+                                                        toast({ title: 'Terhapus' });
+                                                        queryClient.invalidateQueries({ queryKey: ['profile-certifications'] });
+                                                    })}>Hapus</Button>
+                                                )}
+                                            </div>
+                                            <p className="text-muted-foreground">
+                                                {c.organizer || '-'}{c.certificate_number ? ` — No: ${c.certificate_number}` : ''}{c.issued_at ? ` — Terbit: ${String(c.issued_at).slice(0, 10)}` : ''}{c.valid_until ? ` s.d ${String(c.valid_until).slice(0, 10)}` : ''}{c.duration ? ` — ${c.duration}` : ''}{c.participant_role ? ` — ${c.participant_role}` : ''}{c.document?.file_name ? ` — File: ${c.document.file_name}` : ''}
+                                            </p>
+                                            {c.description && <p className="mt-1">{c.description}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {editing && (
+                                <form
+                                    onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const form = e.currentTarget as HTMLFormElement;
+                                        const fd = new FormData(form);
+                                        try {
+                                            let documentId = certDocId && certDocId !== 'none' ? Number(certDocId) : null;
+                                            if (certFile && employee) {
+                                                const upload = new FormData();
+                                                upload.append('employee_id', String(employee.id));
+                                                upload.append('document_type', 'Sertifikat');
+                                                upload.append('file', certFile);
+                                                const uploaded = await api.post('/documents', upload, { headers: { 'Content-Type': 'multipart/form-data' } });
+                                                documentId = uploaded.data.data.id;
+                                            }
+                                            await api.post('/profile/certifications', {
+                                                category: certCategory,
+                                                name: fd.get('name'),
+                                                organizer: fd.get('organizer') || null,
+                                                certificate_number: fd.get('certificate_number') || null,
+                                                issued_at: fd.get('issued_at') || null,
+                                                valid_until: fd.get('valid_until') || null,
+                                                duration: fd.get('duration') || null,
+                                                participant_role: fd.get('participant_role') || null,
+                                                description: fd.get('description') || null,
+                                                document_id: documentId,
+                                            });
+                                            toast({ title: 'Berhasil', description: 'Data ditambahkan.' });
+                                            form.reset();
+                                            setCertDocId('none');
+                                            setCertFile(null);
+                                            queryClient.invalidateQueries({ queryKey: ['profile-certifications'] });
+                                            queryClient.invalidateQueries({ queryKey: ['profile-documents'] });
+                                        } catch {
+                                            toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' });
+                                        }
+                                    }}
+                                    className="space-y-4 rounded-md border p-4"
+                                >
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                    <div><Label>Kategori</Label><Select value={certCategory} onValueChange={setCertCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="SERTIFIKAT">Sertifikat</SelectItem><SelectItem value="PELATIHAN">Pelatihan</SelectItem><SelectItem value="SEMINAR">Seminar</SelectItem><SelectItem value="NONFORMAL">Non-Formal</SelectItem></SelectContent></Select></div>
+                                        <div><Label>Nama</Label><Input name="name" required /></div>
+                                        <div><Label>Penyelenggara / Lembaga</Label><Input name="organizer" /></div>
+                                        <div><Label>Nomor Sertifikat</Label><Input name="certificate_number" /></div>
+                                        <div><Label>Tanggal Terbit</Label><Input name="issued_at" type="date" /></div>
+                                        <div><Label>Masa Berlaku</Label><Input name="valid_until" type="date" /></div>
+                                        <div><Label>Durasi</Label><Input name="duration" placeholder="mis. 3 hari / 32 JP" /></div>
+                                        <div><Label>Peran</Label><Input name="participant_role" placeholder="Peserta / Pemateri" /></div>
+                                        <div className="sm:col-span-2"><Label>Keterangan</Label><Input name="description" /></div>
+                                        <div className="sm:col-span-2"><Label>Upload File Sertifikat (opsional, PDF/JPG/PNG maks 10MB)</Label><Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(ev) => setCertFile(ev.target.files?.[0] ?? null)} /></div>
+                                        <div className="sm:col-span-2"><Label>Atau pilih file dari menu Dokumen</Label><Select value={certDocId} onValueChange={setCertDocId}><SelectTrigger><SelectValue placeholder="Tanpa file" /></SelectTrigger><SelectContent><SelectItem value="none">Tanpa file</SelectItem>{(myDocs ?? []).map((d) => (<SelectItem key={d.id} value={String(d.id)}>{d.file_name || `Dokumen ${d.id}`} ({d.document_type || '-'})</SelectItem>))}</SelectContent></Select></div>
+                                    </div>
+                                    <Button type="submit">Tambah Data</Button>
+                                </form>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {(['PELATIHAN', 'SEMINAR'] as const).map((kat) => (
+                        <Card key={kat} className="mt-4">
+                            <CardHeader>
+                                <CardTitle>{CERT_CATEGORY_LABELS[kat]}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {!certifications?.filter((c) => c.category === kat).length ? (
+                                    <p className="text-sm text-muted-foreground">{`Belum ada data ${CERT_CATEGORY_LABELS[kat].toLowerCase()}.`}</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {certifications.filter((c) => c.category === kat).map((c) => (
+                                            <div key={c.id} className="rounded-md border p-3 text-sm">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="min-w-0 truncate font-medium">{c.name || '-'}</p>
+                                                    {editing && (
+                                                        <Button variant="ghost" size="sm" className="shrink-0" onClick={() => api.delete(`/profile/certifications/${c.id}`).then(() => {
+                                                            toast({ title: 'Terhapus' });
+                                                            queryClient.invalidateQueries({ queryKey: ['profile-certifications'] });
+                                                        })}>Hapus</Button>
+                                                    )}
+                                                </div>
+                                                <p className="text-muted-foreground">
+                                                    {c.organizer || '-'}{c.certificate_number ? ` — No: ${c.certificate_number}` : ''}{c.issued_at ? ` — Terbit: ${String(c.issued_at).slice(0, 10)}` : ''}{c.valid_until ? ` s.d ${String(c.valid_until).slice(0, 10)}` : ''}{c.duration ? ` — ${c.duration}` : ''}{c.participant_role ? ` — ${c.participant_role}` : ''}{c.document?.file_name ? ` — File: ${c.document.file_name}` : ''}
+                                                </p>
+                                                {c.description && <p className="mt-1">{c.description}</p>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {editing && (
+                                    <form
+                                        onSubmit={async (e) => {
+                                            e.preventDefault();
+                                            const form = e.currentTarget as HTMLFormElement;
+                                            const fd = new FormData(form);
+                                            try {
+                                                await api.post('/profile/certifications', {
+                                                    category: kat,
+                                                    name: fd.get('name'),
+                                                    organizer: fd.get('organizer') || null,
+                                                    certificate_number: fd.get('certificate_number') || null,
+                                                    issued_at: fd.get('issued_at') || null,
+                                                    valid_until: fd.get('valid_until') || null,
+                                                    duration: fd.get('duration') || null,
+                                                    participant_role: fd.get('participant_role') || null,
+                                                    description: fd.get('description') || null,
+                                                    document_id: null,
+                                                });
+                                                toast({ title: 'Berhasil', description: 'Data ditambahkan.' });
+                                                form.reset();
+                                                queryClient.invalidateQueries({ queryKey: ['profile-certifications'] });
+                                            } catch {
+                                                toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' });
+                                            }
+                                        }}
+                                        className="space-y-4 rounded-md border p-4"
+                                    >
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div><Label>Nama</Label><Input name="name" required /></div>
+                                            <div><Label>Penyelenggara / Lembaga</Label><Input name="organizer" /></div>
+                                            <div><Label>Nomor</Label><Input name="certificate_number" /></div>
+                                            <div><Label>Tanggal Terbit</Label><Input name="issued_at" type="date" /></div>
+                                            <div><Label>Masa Berlaku</Label><Input name="valid_until" type="date" /></div>
+                                            <div><Label>Durasi</Label><Input name="duration" placeholder="mis. 3 hari / 32 JP" /></div>
+                                            <div><Label>Peran</Label><Input name="participant_role" placeholder="Peserta / Pemateri" /></div>
+                                            <div className="sm:col-span-2"><Label>Keterangan</Label><Input name="description" /></div>
+                                        </div>
+                                        <Button type="submit">{`Tambah ${CERT_CATEGORY_LABELS[kat]}`}</Button>
+                                    </form>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ))}
+                </TabsContent>
+
 
                 <TabsContent value="fungsional">
                     <Card>
@@ -439,27 +813,20 @@ export default function ProfilePage() {
                                             <Select value={fungsionalForm.watch('status_kepegawaian_detail') ?? ''} onValueChange={(v) => fungsionalForm.setValue('status_kepegawaian_detail', v)}>
                                                 <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="PNS">PNS</SelectItem>
-                                                    <SelectItem value="DPK">DPK</SelectItem>
-                                                    <SelectItem value="Non-PNS">Non PNS</SelectItem>
+                                                    <SelectItem value="Tetap">Tetap</SelectItem>
+                                                    <SelectItem value="Tidak Tetap">Tidak Tetap</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
                                         <div>
-                                            <Label>Jabatan Fungsional</Label>
-                                            <Select value={fungsionalForm.watch('jabatan_fungsional') ?? ''} onValueChange={(v) => fungsionalForm.setValue('jabatan_fungsional', v)}>
-                                                <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Asisten Ahli">Asisten Ahli</SelectItem>
-                                                    <SelectItem value="Lektor">Lektor</SelectItem>
-                                                    <SelectItem value="Lektor Kepala">Lektor Kepala</SelectItem>
-                                                    <SelectItem value="Guru Besar">Guru Besar</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div>
-                                            <Label>Pangkat</Label>
-                                            <Input {...fungsionalForm.register('pangkat')} />
+                                            <Label>Pangkat (otomatis dari role)</Label>
+                                            {/* Pangkat ditentukan dari role — read-only, lihat PANGKAT_BY_ROLE. */}
+                                            <Input
+                                                value={pangkatDariRole(profile?.roles)}
+                                                readOnly
+                                                disabled
+                                                className="bg-muted text-muted-foreground"
+                                            />
                                         </div>
                                         <div>
                                             <Label>Golongan Ruang</Label>
@@ -468,10 +835,6 @@ export default function ProfilePage() {
                                         <div>
                                             <Label>TMT Pangkat</Label>
                                             <Input type="date" {...fungsionalForm.register('tmt_pangkat')} />
-                                        </div>
-                                        <div>
-                                            <Label>Bidang Keahlian</Label>
-                                            <Input {...fungsionalForm.register('bidang_keahlian')} />
                                         </div>
                                         <div>
                                             <Label>Unit Kerja</Label>
@@ -487,14 +850,96 @@ export default function ProfilePage() {
                             ) : (
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <Row label="Status Kepegawaian" value={functional?.status_kepegawaian_detail} />
-                                    <Row label="Jabatan Fungsional" value={functional?.jabatan_fungsional} />
-                                    <Row label="Pangkat" value={functional?.pangkat} />
+                                    <Row label="Pangkat" value={pangkatDariRole(profile?.roles)} />
                                     <Row label="Golongan Ruang" value={functional?.golongan_ruang} />
                                     <Row label="TMT Pangkat" value={functional?.tmt_pangkat} />
-                                    <Row label="Bidang Keahlian" value={functional?.bidang_keahlian} />
                                     <Row label="Unit Kerja" value={functional?.unit_kerja} />
                                     <Row label="Sertifikasi" value={functional?.sertifikasi} />
                                 </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Riwayat SK</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                Menampung SK Jabatan Fungsional, SK Penilaian Angka Kredit (PAK), dan SK Kenaikan Pangkat. Bisa berulang sepanjang karier.
+                            </p>
+                            {!skRecords || skRecords.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Belum ada riwayat SK.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {skRecords.map((s) => (
+                                        <div key={s.id} className="rounded-md border p-3 text-sm">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="min-w-0 truncate font-medium">{SK_JENIS_LABELS[s.jenis_sk] ?? s.jenis_sk}</p>
+                                                {editing && (
+                                                    <Button variant="ghost" size="sm" className="shrink-0" onClick={() => api.delete(`/profile/sk-records/${s.id}`).then(() => {
+                                                        toast({ title: 'Terhapus' });
+                                                        queryClient.invalidateQueries({ queryKey: ['profile-sk-records'] });
+                                                    })}>Hapus</Button>
+                                                )}
+                                            </div>
+                                            <p className="text-muted-foreground">
+                                                {s.nomor_sk ? `No: ${s.nomor_sk}` : 'No: -'}
+                                                {s.tanggal_sk ? ` — Tanggal SK: ${String(s.tanggal_sk).slice(0, 10)}` : ''}
+                                                {s.tmt ? ` — TMT: ${String(s.tmt).slice(0, 10)}` : ''}
+                                                {s.pejabat_penetap ? ` — ${s.pejabat_penetap}` : ''}
+                                                {s.document?.file_name ? ` — File: ${s.document.file_name}` : ''}
+                                            </p>
+                                            {s.keterangan && <p className="mt-1">{s.keterangan}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {editing && (
+                                <form
+                                    onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const form = e.currentTarget as HTMLFormElement;
+                                        const fd = new FormData(form);
+                                        try {
+                                            await api.post('/profile/sk-records', {
+                                                jenis_sk: skJenis,
+                                                nomor_sk: fd.get('nomor_sk') || null,
+                                                tanggal_sk: fd.get('tanggal_sk') || null,
+                                                tmt: fd.get('tmt') || null,
+                                                pejabat_penetap: fd.get('pejabat_penetap') || null,
+                                                keterangan: fd.get('keterangan') || null,
+                                            });
+                                            toast({ title: 'Berhasil', description: 'Riwayat SK ditambahkan.' });
+                                            form.reset();
+                                            setSkJenis('JABATAN_FUNGSIONAL');
+                                            queryClient.invalidateQueries({ queryKey: ['profile-sk-records'] });
+                                        } catch {
+                                            toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' });
+                                        }
+                                    }}
+                                    className="space-y-4 rounded-md border p-4"
+                                >
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <Label>Jenis SK</Label>
+                                            <Select value={skJenis} onValueChange={(v) => setSkJenis(v as SkRecordItem['jenis_sk'])}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="JABATAN_FUNGSIONAL">SK Jabatan Fungsional</SelectItem>
+                                                    <SelectItem value="ANGKA_KREDIT_PAK">SK Angka Kredit (PAK)</SelectItem>
+                                                    <SelectItem value="KENAIKAN_PANGKAT">SK Kenaikan Pangkat</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div><Label>Nomor SK</Label><Input name="nomor_sk" /></div>
+                                        <div><Label>Tanggal SK</Label><Input name="tanggal_sk" type="date" /></div>
+                                        <div><Label>TMT</Label><Input name="tmt" type="date" /></div>
+                                        <div><Label>Pejabat Penetap</Label><Input name="pejabat_penetap" /></div>
+                                        <div className="sm:col-span-2"><Label>Keterangan</Label><Input name="keterangan" /></div>
+                                    </div>
+                                    <Button type="submit">Tambah SK</Button>
+                                </form>
                             )}
                         </CardContent>
                     </Card>
@@ -513,9 +958,9 @@ export default function ProfilePage() {
                                     {employee.position_histories.map((h) => (
                                         <div key={h.id} className="rounded-md border p-3 text-sm">
                                             <div className="flex items-center justify-between gap-2">
-                                                <p className="font-medium">{h.jabatan}{h.unit_kerja ? ` (${h.unit_kerja})` : ''}</p>
+                                                <p className="min-w-0 truncate font-medium">{h.jabatan}{h.unit_kerja ? ` (${h.unit_kerja})` : ''}</p>
                                                 {editing && (
-                                                    <Button variant="ghost" size="sm" onClick={() => api.delete(`/profile/position-histories/${h.id}`).then(() => {
+                                                    <Button variant="ghost" size="sm" className="shrink-0" onClick={() => api.delete(`/profile/position-histories/${h.id}`).then(() => {
                                                         toast({ title: 'Terhapus' });
                                                         queryClient.invalidateQueries({ queryKey: ['profile'] });
                                                     })}>Hapus</Button>
@@ -566,7 +1011,7 @@ export default function ProfilePage() {
                     </Card>
                 </TabsContent>
 
-                {isPegawai && (
+                {isDosen && (
                 <TabsContent value="matkul">
                     <Card>
                         <CardHeader>
@@ -672,6 +1117,7 @@ export default function ProfilePage() {
                             document.body.appendChild(link);
                             link.click();
                             link.remove();
+                            window.URL.revokeObjectURL(url);
                         }}>Unduh PDF</Button>
                         <Button variant="outline" onClick={async () => {
                             const res = await api.get(`/reports/biodata-word/${employee.id}`, { responseType: 'blob' });
@@ -682,6 +1128,7 @@ export default function ProfilePage() {
                             document.body.appendChild(link);
                             link.click();
                             link.remove();
+                            window.URL.revokeObjectURL(url);
                         }}>Unduh Word</Button>
                     </CardContent>
                 </Card>

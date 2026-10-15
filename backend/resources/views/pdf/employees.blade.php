@@ -14,7 +14,7 @@
 <body>
     <h1>Data Pegawai</h1>
     <table>
-        <tr><th>NIK</th><th>Nama</th><th>Email</th><th>Jabatan</th><th>Unit</th><th>Status</th><th>Telepon</th><th>Tanggal Masuk</th></tr>
+        <tr><th>Nomor Induk Kepegawaian</th><th>Nama</th><th>Email</th><th>Jabatan</th><th>Unit</th><th>Status</th><th>Telepon</th><th>Tanggal Masuk</th></tr>
         @foreach($employees as $emp)
         <tr>
             <td>{{ $emp->nik }}</td>

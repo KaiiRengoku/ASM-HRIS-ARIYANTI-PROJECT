@@ -8,16 +8,23 @@ import { toast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { extractErrorMessage } from '@/services/apiError';
 
-const fetchApprovals = async (role: string) => {
-    // Kabag -> level 1, HRD -> level 2
-    const level = role === 'KABAG' ? 1 : 2;
-    const res = await api.get(`/leaves?level=${level}`);
+const fetchApprovals = async () => {
+    // Antrean "menunggu persetujuan saya". Parameter `level` diisi nilai
+    // non-kosong & bukan 'all' agar backend (LeaveController::index, blok
+    // `if ($request->has('level') ...)`) menghitung status MENUNGGU yang sesuai
+    // tahap pelaku: atasan langsung/Kabag/Direktur → 'Pending'; HRD → 'Pending' +
+    // 'Disetujui Atasan Langsung' + 'Disetujui Kepala Bagian' + 'Disetujui
+    // Direktur'. Data yang sudah tuntas ('Disetujui HRD') TIDAK ikut tampil di
+    // sini — agar tidak duplikat dengan halaman Cuti/Izin.
+    const res = await api.get('/leaves', { params: { level: 'queue' } });
     return res.data.data;
 };
 
-const approveLeave = async ({ id, level }: { id: number; level: number }) => {
-    const res = await api.post(`/leaves/${id}/approve`, { level });
+const approveLeave = async ({ id }: { id: number }) => {
+    // Server yang menentukan tahap; klien tidak perlu mengirim level.
+    const res = await api.post(`/leaves/${id}/approve`);
     return res.data;
 };
 
@@ -27,8 +34,10 @@ const rejectLeave = async ({ id, reason }: { id: number; reason: string }) => {
 };
 
 export default function ApprovalPage() {
-    const { user } = useAuthStore();
+    const { user, hasPermission } = useAuthStore();
     const role = user?.roles?.[0] || '';
+    const canApprove = hasPermission('leave.approve');
+    const canReject = hasPermission('leave.reject');
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [rejectReason, setRejectReason] = useState('');
     const [openReject, setOpenReject] = useState(false);
@@ -36,7 +45,7 @@ export default function ApprovalPage() {
 
     const { data: approvals, isLoading, error } = useQuery({
         queryKey: ['approvals', role],
-        queryFn: () => fetchApprovals(role),
+        queryFn: fetchApprovals,
         enabled: !!role,
     });
 
@@ -44,24 +53,30 @@ export default function ApprovalPage() {
         mutationFn: approveLeave,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['approvals'] });
+            queryClient.invalidateQueries({ queryKey: ['leaves'] });
+            queryClient.invalidateQueries({ queryKey: ['leave-balances'] });
+            queryClient.invalidateQueries({ queryKey: ['notifications-latest'] });
             toast({ title: 'Berhasil', description: 'Pengajuan disetujui.' });
         },
-        onError: () => toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' }),
+        onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e), variant: 'destructive' }),
     });
 
     const rejectMutation = useMutation({
         mutationFn: rejectLeave,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['approvals'] });
+            queryClient.invalidateQueries({ queryKey: ['leaves'] });
+            queryClient.invalidateQueries({ queryKey: ['leave-balances'] });
+            queryClient.invalidateQueries({ queryKey: ['notifications-latest'] });
             toast({ title: 'Berhasil', description: 'Pengajuan ditolak.' });
             setOpenReject(false);
+            setRejectReason('');
         },
-        onError: () => toast({ title: 'Gagal', description: 'Terjadi kesalahan.', variant: 'destructive' }),
+        onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e), variant: 'destructive' }),
     });
 
     const handleApprove = (id: number) => {
-        const level = role === 'KABAG' ? 1 : 2;
-        approveMutation.mutate({ id, level });
+        approveMutation.mutate({ id });
     };
 
     const handleReject = () => {
@@ -82,12 +97,43 @@ export default function ApprovalPage() {
             <div>
                 <h1 className="text-2xl font-bold">Approval</h1>
                 <p className="text-muted-foreground">
-                    {role === 'KABAG' ? 'Persetujuan cuti bawahan (Level 1)' : 'Verifikasi akhir cuti (Level 2)'}
+                    {role === 'HRD'
+                        ? 'Verifikasi akhir cuti (menunggu HRD)'
+                        : 'Persetujuan cuti/izin yang menunggu tindakan Anda'}
                 </p>
             </div>
 
             <Card>
                 <CardContent className="p-0">
+                    {/* Mobile: kartu per pengajuan — tabel 6 kolom tak muat di layar sempit. */}
+                    <div className="divide-y md:hidden">
+                        {list.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">Tidak ada pengajuan menunggu approval</p>
+                        ) : (
+                            list.map((item: any) => (
+                                <div key={item.id} className="space-y-3 p-4">
+                                    <div className="min-w-0">
+                                        <p className="truncate font-medium" title={item.employee?.nama_lengkap || ''}>{item.employee?.nama_lengkap || '-'}</p>
+                                        <p className="text-xs text-muted-foreground">{item.leave_type?.name || '-'}</p>
+                                    </div>
+                                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                                        <div className="col-span-2"><dt className="text-muted-foreground">Tanggal</dt><dd>{item.start_date} s.d {item.end_date}</dd></div>
+                                        <div><dt className="text-muted-foreground">Total Hari</dt><dd>{item.total_days}</dd></div>
+                                        <div className="col-span-2 min-w-0"><dt className="text-muted-foreground">Alasan</dt><dd className="break-words">{item.reason || '-'}</dd></div>
+                                    </dl>
+                                    <div className="flex flex-wrap gap-2">
+                                        {canApprove && (
+                                            <Button size="sm" onClick={() => handleApprove(item.id)} disabled={approveMutation.isPending}>Setujui</Button>
+                                        )}
+                                        {canReject && (
+                                            <Button variant="destructive" size="sm" onClick={() => { setSelectedId(item.id); setOpenReject(true); }} disabled={rejectMutation.isPending}>Tolak</Button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className="hidden md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -114,6 +160,7 @@ export default function ApprovalPage() {
                                         <TableCell>{item.reason || '-'}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex flex-wrap justify-end gap-2">
+                                            {canApprove && (
                                             <Button
                                                 size="sm"
                                                 onClick={() => handleApprove(item.id)}
@@ -121,6 +168,8 @@ export default function ApprovalPage() {
                                             >
                                                 Setujui
                                             </Button>
+                                            )}
+                                            {canReject && (
                                             <Button
                                                 variant="destructive"
                                                 size="sm"
@@ -129,6 +178,7 @@ export default function ApprovalPage() {
                                             >
                                                 Tolak
                                             </Button>
+                                            )}
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -136,10 +186,11 @@ export default function ApprovalPage() {
                             )}
                         </TableBody>
                     </Table>
+                    </div>
                 </CardContent>
             </Card>
 
-            <Dialog open={openReject} onOpenChange={setOpenReject}>
+            <Dialog open={openReject} onOpenChange={(v) => { setOpenReject(v); if (!v) setRejectReason(''); }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Alasan Penolakan</DialogTitle>

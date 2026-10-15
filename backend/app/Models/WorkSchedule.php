@@ -20,8 +20,8 @@ class WorkSchedule extends Model
     protected $casts = [
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
-        'effective_from' => 'date',
-        'effective_until' => 'date',
+        'effective_from' => 'date:Y-m-d',
+        'effective_until' => 'date:Y-m-d',
         'is_working_day' => 'boolean',
         'is_active' => 'boolean',
     ];

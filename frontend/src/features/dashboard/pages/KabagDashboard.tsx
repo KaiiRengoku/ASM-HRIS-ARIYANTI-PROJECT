@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/services/api';
 import { Link } from 'react-router-dom';
+import { ArrowRight, ClipboardCheck } from 'lucide-react';
 
 const fetchStats = async () => {
     const res = await api.get('/dashboard/stats');
@@ -10,7 +11,7 @@ const fetchStats = async () => {
 
 export default function KabagDashboard() {
     const { data, isLoading, error } = useQuery({
-        queryKey: ['dashboard-stats'],
+        queryKey: ['dashboard-stats', 'kabag'],
         queryFn: fetchStats,
     });
 
@@ -92,15 +93,20 @@ export default function KabagDashboard() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Aksi</CardTitle>
+                        <CardTitle className="text-sm font-medium">Approval</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            <Link to="/approval">
-                                <button className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm">Lihat</button>
-                            </Link>
-                        </div>
-                        <p className="text-xs text-muted-foreground">Approval</p>
+                        <Link
+                            to="/approval"
+                            className="group flex items-center justify-between gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_2px_10px_-2px_rgb(211_0_0/0.5)] transition-all duration-200 hover:bg-[#B00000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <span className="flex items-center gap-2">
+                                <ClipboardCheck className="size-4" />
+                                Lihat
+                            </span>
+                            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                        </Link>
+                        <p className="mt-2 text-xs text-muted-foreground">{data?.pending_approval ?? 0} menunggu persetujuan</p>
                     </CardContent>
                 </Card>
             </div>
@@ -119,9 +125,9 @@ export default function KabagDashboard() {
                                     </div>
                                     <span className={`shrink-0 text-xs px-2 py-1 rounded-full ${
                                         item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                        item.status === 'Disetujui Kepala Bagian' ? 'bg-blue-100 text-blue-800' :
+                                        ['Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur'].includes(item.status) ? 'bg-blue-100 text-blue-800' :
                                         ['Approved', 'Disetujui HRD'].includes(item.status) ? 'bg-green-100 text-green-800' :
-                                        ['Rejected', 'Ditolak Kepala Bagian', 'Ditolak HRD'].includes(item.status) ? 'bg-red-100 text-red-800' :
+                                        ['Rejected', 'Ditolak Atasan Langsung', 'Ditolak Kepala Bagian', 'Ditolak Direktur', 'Ditolak HRD'].includes(item.status) ? 'bg-red-100 text-red-800' :
                                         'bg-gray-100 text-gray-800'
                                     }`}>
                                         {item.status}

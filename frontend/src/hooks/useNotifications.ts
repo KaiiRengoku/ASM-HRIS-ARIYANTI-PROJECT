@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import { ensureEcho, disconnectEcho } from '@/lib/echo';
 import { toast } from '@/components/ui/use-toast';
 
 export function useNotifications() {
     const { user, token, isAuthenticated } = useAuthStore();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (!isAuthenticated || !user || !token) return;
@@ -14,20 +16,18 @@ export function useNotifications() {
 
         const channel = echo.private(`notifications.${user.id}`);
 
-        channel.listen('NotificationSent', (e: any) => {
-            const title = e.title || 'Notifikasi';
-            const body = e.message || '';
+        channel.listen('NotificationSent', (payload: unknown) => {
+            const data = (payload ?? {}) as { title?: string; message?: string };
+            const title = data.title || 'Notifikasi';
+            const body = data.message || '';
             toast({ title, description: body });
-            // Browser notification (kebutuhan §2.1) bila izin sudah diberikan.
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(title, { body });
-            }
+            queryClient.invalidateQueries({ queryKey: ['notifications-latest'] });
         });
 
         return () => {
             channel.stopListening('NotificationSent');
         };
-    }, [isAuthenticated, user, token]);
+    }, [isAuthenticated, user, token, queryClient]);
 
     useEffect(() => {
         if (!isAuthenticated || !token) disconnectEcho();

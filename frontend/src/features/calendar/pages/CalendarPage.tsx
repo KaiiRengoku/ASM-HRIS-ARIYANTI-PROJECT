@@ -285,6 +285,47 @@ export default function CalendarPage() {
                                 </Button>
                             </form>
                             <p className="text-xs text-muted-foreground">Nonaktif = hari libur sementara tanpa hapus data. Hari tanpa baris = libur.</p>
+                            {/* Mobile: kartu per hari kerja — tabel 4 kolom (dengan input jam) tak muat. */}
+                            <div className="divide-y md:hidden">
+                                {!schedules || schedules.length === 0 ? (
+                                    <p className="py-6 text-center text-sm text-muted-foreground">Belum ada jam kerja</p>
+                                ) : (
+                                    schedules.map((s: any) => (
+                                        <div key={s.id} className="space-y-3 p-3">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <p className="font-medium">{days[s.day_of_week - 1]}</p>
+                                                <span className="shrink-0 whitespace-nowrap rounded-full bg-muted px-2 py-1 text-xs">{s.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                                            </div>
+                                            {editingWsId === s.id ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Input type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+                                                    <span>-</span>
+                                                    <Input type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm">{s.start_time?.slice(0, 5)} - {s.end_time?.slice(0, 5)}</p>
+                                            )}
+                                            <div className="flex flex-wrap gap-2">
+                                                {editingWsId === s.id ? (
+                                                    <>
+                                                        <Button size="sm" onClick={() => timeEditMutation.mutate({ id: s.id, data: { start_time: editStart, end_time: editEnd } })}>Simpan</Button>
+                                                        <Button variant="outline" size="sm" onClick={() => setEditingWsId(null)}>Batal</Button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Button variant="outline" size="sm" onClick={() => startInlineEdit(s)}>Edit Jam</Button>
+                                                        <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(s.id)}>
+                                                            {s.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                                                        </Button>
+                                                        <Button variant="destructive" size="sm" onClick={() => setWsDeleteId(s.id)}>Hapus</Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div className="hidden md:block">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -334,6 +375,7 @@ export default function CalendarPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                            </div>
                         </DialogContent>
                     </Dialog>
                     )}
@@ -381,6 +423,36 @@ export default function CalendarPage() {
 
             <Card>
                 <CardContent className="p-0">
+                    {/* Mobile: kartu per hari libur — tabel 6 kolom tak muat di layar sempit. */}
+                    <div className="divide-y md:hidden">
+                        {holidays?.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">Belum ada hari libur</p>
+                        ) : (
+                            holidays?.map((h: any) => (
+                                <div key={h.id} className="space-y-3 p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="truncate font-medium" title={h.name}>{h.name}</p>
+                                            <p className="text-xs text-muted-foreground">{h.date}</p>
+                                        </div>
+                                        <span className="shrink-0 whitespace-nowrap rounded-full bg-muted px-2 py-1 text-xs">{h.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                                    </div>
+                                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                                        <div><dt className="text-muted-foreground">Tipe</dt><dd>{h.holiday_type}</dd></div>
+                                        <div className="col-span-2 min-w-0"><dt className="text-muted-foreground">Catatan</dt><dd className="break-words">{h.notes || '-'}</dd></div>
+                                    </dl>
+                                    {isHrd && (
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => openEdit(h)}>Edit</Button>
+                                            <Button variant="outline" size="sm" onClick={() => toggleHolidayMutation.mutate(h.id)}>{h.is_active ? 'Nonaktifkan' : 'Aktifkan'}</Button>
+                                            <Button variant="destructive" size="sm" onClick={() => setHolidayDeleteId(h.id)}>Hapus</Button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className="hidden md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -417,6 +489,7 @@ export default function CalendarPage() {
                             )}
                         </TableBody>
                     </Table>
+                    </div>
                 </CardContent>
             </Card>
 

@@ -15,6 +15,7 @@ class LeaveStatusMail extends Mailable
         public LeaveRequest $leave,
         public string $statusText,
         public string $statusMessage,
+        public ?string $tahapBerikut = null,
     ) {}
 
     public function build()
@@ -28,6 +29,7 @@ class LeaveStatusMail extends Mailable
                 'periode' => $this->leave->start_date . ' s.d ' . $this->leave->end_date,
                 'status' => $this->statusText,
                 'pesan' => $this->statusMessage,
+                'tahapBerikut' => $this->tahapBerikut,
             ]);
     }
 }

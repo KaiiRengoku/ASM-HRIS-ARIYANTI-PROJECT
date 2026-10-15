@@ -31,11 +31,11 @@ class DashboardController extends Controller
     {
         $totalPegawai = Employee::where('status_kepegawaian', 'aktif')->count();
         $cutiPending = LeaveRequest::where('status', 'Pending')->count();
-        $verifikasiHrd = LeaveRequest::where('status', 'Disetujui Kepala Bagian')->count();
+        $verifikasiHrd = LeaveRequest::whereIn('status', ['Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur'])->count();
         $dokumenPerluDitinjau = \App\Models\LeaveAttachment::where('verification_status', 'PENDING')->count();
 
         $pengajuanTerbaru = LeaveRequest::with(['employee', 'leaveType'])
-            ->whereIn('status', ['Pending', 'Disetujui Kepala Bagian'])
+            ->whereIn('status', ['Pending', 'Disetujui Atasan Langsung', 'Disetujui Kepala Bagian', 'Disetujui Direktur'])
             ->latest('created_at')
             ->limit(5)
             ->get()
@@ -133,6 +133,18 @@ class DashboardController extends Controller
                 'mengajar' => $mengajar,
                 'penelitian' => $penelitian,
                 'libur_terdekat' => $libur,
+                // Informasi pribadi untuk kartu identitas di dashboard.
+                'profil' => [
+                    'nama_lengkap' => $employee->nama_lengkap,
+                    'gelar_depan' => $employee->gelar_depan,
+                    'gelar_belakang' => $employee->gelar_belakang,
+                    'nik' => $employee->nik,
+                    'nip' => $employee->nip,
+                    'nidn' => $employee->nidn,
+                    'jabatan' => $employee->position?->name,
+                    'status_kepegawaian' => $employee->status_kepegawaian,
+                    'tanggal_masuk_kerja' => $employee->tanggal_masuk_kerja?->format('Y-m-d'),
+                ],
             ],
         ]);
     }

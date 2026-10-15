@@ -68,7 +68,7 @@ class DocumentController extends Controller
         $request->validate([
             'employee_id' => ['required', 'exists:employees,id'],
             'document_type' => ['required', Rule::in(['KTP', 'Ijazah', 'Sertifikat', 'Surat Tugas', 'KK', 'NPWP', 'SK Pengangkatan', 'Foto', 'SK Cuti'])],
-            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'file' => ['required', 'file', 'max:51200', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 
         if (!$this->canMutate($request, (int) $request->employee_id)) {
@@ -137,8 +137,16 @@ class DocumentController extends Controller
             return response()->json(['success' => false, 'message' => 'File tidak ditemukan.'], 404);
         }
 
+        // RFC 5987: nama non-ASCII harus lewat filename* (UTF-8), bukan addslashes().
+        $disposition = \Symfony\Component\HttpFoundation\HeaderUtils::makeDisposition(
+            \Symfony\Component\HttpFoundation\HeaderUtils::DISPOSITION_INLINE,
+            $document->file_name,
+            // Fallback ASCII untuk klien lama.
+            preg_replace('/[^\x20-\x7E]/', '_', $document->file_name)
+        );
+
         return $disk->response($document->storage_path, $document->file_name, [
-            'Content-Disposition' => 'inline; filename="' . addslashes($document->file_name) . '"',
+            'Content-Disposition' => $disposition,
         ]);
     }
 

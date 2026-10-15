@@ -20,7 +20,7 @@ class AuthController extends Controller
         if (!Auth::attempt($credentials, $request->boolean('remember'))) {
             return response()->json([
                 'success' => false,
-                'message' => 'NIK atau kata sandi salah.',
+                'message' => 'Nomor Induk Kepegawaian atau kata sandi salah.',
             ], 401);
         }
 
@@ -54,6 +54,7 @@ class AuthController extends Controller
                     'nik' => $user->nik,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'employee_id' => $user->employee_id,
                     'roles' => $user->roles->pluck('code')->toArray(),
                     'permissions' => $user->permissionCodes(),
                 ],
@@ -67,28 +68,21 @@ public function forgotPassword(ForgotPasswordRequest $request)
 {
     $user = User::where('nik', $request->nik)->first();
 
+    // Selalu balas pesan generik yang sama, apa pun hasilnya, supaya NIK mana
+    // yang terdaftar tidak bisa ditebak dari perbedaan respons (enumeration).
+    $generik = 'Jika Nomor Induk Kepegawaian terdaftar, link reset sudah dikirim ke email Anda. Cek inbox atau spam.';
+
     if (!$user || !$user->email) {
-        return response()->json([
-            'success' => true,
-            'message' => 'Jika NIK terdaftar, link reset sudah dikirim ke email Anda. Cek inbox atau spam.',
-        ]);
+        return response()->json(['success' => true, 'message' => $generik]);
     }
 
-    $status = Password::sendResetLink(['email' => $user->email]);
-
-    if ($status !== Password::RESET_LINK_SENT) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Gagal mengirim link reset. Coba lagi nanti.',
-        ], 400);
+    try {
+        Password::sendResetLink(['email' => $user->email]);
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::warning('Gagal kirim link reset: ' . $e->getMessage());
     }
 
-    $masked = substr($user->email, 0, 1) . str_repeat('*', max(0, strpos($user->email, '@') - 2)) . substr($user->email, strpos($user->email, '@'));
-
-    return response()->json([
-        'success' => true,
-        'message' => "Link reset sudah dikirim ke {$masked}. Cek inbox atau spam.",
-    ]);
+    return response()->json(['success' => true, 'message' => $generik]);
 }
 
     public function resetPassword(ResetPasswordRequest $request)
@@ -148,6 +142,7 @@ public function forgotPassword(ForgotPasswordRequest $request)
                     'nik' => $user->nik,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'employee_id' => $user->employee_id,
                     'roles' => $user->roles->pluck('code')->toArray(),
                     'permissions' => $user->permissionCodes(),
                 ],

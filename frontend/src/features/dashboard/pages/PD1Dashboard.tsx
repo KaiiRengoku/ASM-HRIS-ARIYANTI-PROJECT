@@ -9,7 +9,7 @@ const fetchStats = async () => {
 
 export default function PD1Dashboard({ title = 'Dashboard Pembantu Direktur I' }: { title?: string }) {
     const { data, isLoading, error } = useQuery({
-        queryKey: ['dashboard-stats'],
+        queryKey: ['dashboard-stats', 'pd'],
         queryFn: fetchStats,
     });
 

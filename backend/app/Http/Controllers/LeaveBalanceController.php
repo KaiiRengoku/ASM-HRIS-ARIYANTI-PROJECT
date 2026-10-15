@@ -21,10 +21,66 @@ class LeaveBalanceController extends Controller
         if (!$canViewAll && (int) $employeeId !== (int) $request->user()->employee_id) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
+        // Tahun periode bisa dipilih eksplisit (mis. cuti lintas tahun dipotong pada
+        // tahun start_date oleh LeaveController::approve). Default: tahun berjalan.
+        $year = (int) $request->query('year', date('Y'));
         $balances = LeaveBalance::with('leaveType')
             ->where('employee_id', $employeeId)
-            ->where('period_year', date('Y'))
+            ->where('period_year', $year)
             ->get();
+
+        return response()->json(['success' => true, 'data' => $balances]);
+    }
+
+    // Daftar ringkasan saldo cuti SELURUH pegawai (khusus HRD & pimpinan).
+    // Otorisasi role ditegakkan di rute (role:HRD,DIREKTUR,PD_I,PD_II,PD_III),
+    // sehingga KABAG/DOSEN/PEGAWAI tidak dapat menembus endpoint ini.
+    public function index(Request $request)
+    {
+        $query = LeaveBalance::with(['leaveType', 'employee'])
+            ->when($request->filled('year'), fn ($q) => $q->where('period_year', (int) $request->year))
+            ->when($request->filled('leave_type_id'), fn ($q) => $q->where('leave_type_id', (int) $request->leave_type_id))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->search;
+                $q->whereHas('employee', fn ($e) => $e->where('nama_lengkap', 'like', "%{$search}%")
+                    ->orWhere('nik', 'like', "%{$search}%")
+                    ->orWhere('nip', 'like', "%{$search}%"));
+            })
+            ->orderByDesc('period_year')
+            ->orderBy('employee_id');
+
+        $balances = $query->get()->map(function (LeaveBalance $b) {
+            // Samakan sisa dengan rumus baku backend (LeaveBalanceController::adjust &
+            // LeaveController::approve): sisa = jatah + penyesuaian - terpakai.
+            // remaining_days dipakai bila ada, tetapi bila tidak konsisten dengan rumus
+            // tersebut, nilai hasil rumus yang ditampilkan agar tidak menyesatkan.
+            $computed = (float) $b->entitled_days + (float) $b->adjustment_days - (float) $b->used_days;
+            $remaining = $b->remaining_days === null ? $computed : (float) $b->remaining_days;
+            $isConsistent = $b->remaining_days !== null && abs($remaining - $computed) < 0.005;
+
+            return [
+                'id' => $b->id,
+                'employee_id' => $b->employee_id,
+                'employee' => [
+                    'id' => $b->employee?->id,
+                    'nama_lengkap' => $b->employee?->nama_lengkap,
+                    'nik' => $b->employee?->nik,
+                    'nip' => $b->employee?->nip,
+                ],
+                'leave_type' => [
+                    'id' => $b->leaveType?->id,
+                    'name' => $b->leaveType?->name,
+                    // Sumber kebenaran apakah jenis cuti ini memotong saldo.
+                    'is_leave_balance_deducted' => (bool) ($b->leaveType?->is_leave_balance_deducted ?? false),
+                ],
+                'period_year' => $b->period_year,
+                'entitled_days' => (float) $b->entitled_days,
+                'adjustment_days' => (float) $b->adjustment_days,
+                'used_days' => (float) $b->used_days,
+                'remaining_days' => $isConsistent ? (float) $b->remaining_days : $computed,
+                'remaining_days_is_consistent' => $isConsistent,
+            ];
+        });
 
         return response()->json(['success' => true, 'data' => $balances]);
     }
@@ -34,56 +90,68 @@ class LeaveBalanceController extends Controller
         $request->validate([
             'employee_id' => ['required', 'exists:employees,id'],
             'leave_type_id' => ['required', 'exists:leave_types,id'],
-            'amount' => ['required', 'numeric'],
+            'amount' => ['required', 'numeric', 'between:-365,365'],
             'reason' => ['required', 'string'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
         ]);
 
-        $balance = LeaveBalance::where('employee_id', $request->employee_id)
-            ->where('leave_type_id', $request->leave_type_id)
-            ->where('period_year', date('Y'))
-            ->first();
+        // Tahun target penyesuaian. Default tahun berjalan; bisa dipilih eksplisit agar
+        // HRD dapat mengoreksi saldo tahun lain (mis. cuti lintas tahun).
+        $year = (int) $request->input('year', date('Y'));
 
-        if (!$balance) {
-            $employee = Employee::findOrFail($request->employee_id);
-            $entitled = LeaveCalculationService::entitledDays($employee, (int) date('Y'));
-            $balance = LeaveBalance::create([
+        $balance = DB::transaction(function () use ($request, $year) {
+            // lockForUpdate: kunci baris saldo selama transaksi agar dua penyesuaian
+            // bersamaan (atau penyesuaian vs approval) tidak saling menimpa.
+            $balance = LeaveBalance::where('employee_id', $request->employee_id)
+                ->where('leave_type_id', $request->leave_type_id)
+                ->where('period_year', $year)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$balance) {
+                $employee = Employee::findOrFail($request->employee_id);
+                $entitled = LeaveCalculationService::entitledDays($employee, $year);
+                $balance = LeaveBalance::create([
+                    'employee_id' => $request->employee_id,
+                    'leave_type_id' => $request->leave_type_id,
+                    'period_year' => $year,
+                    'entitled_days' => $entitled,
+                    'adjustment_days' => 0,
+                    'used_days' => 0,
+                    'remaining_days' => $entitled,
+                ]);
+            }
+
+            $before = $balance->remaining_days;
+            $balance->adjustment_days += $request->amount;
+            $balance->remaining_days = $balance->entitled_days + $balance->adjustment_days - $balance->used_days;
+            $balance->save();
+
+            LeaveBalanceTransaction::create([
+                'leave_balance_id' => $balance->id,
                 'employee_id' => $request->employee_id,
-                'leave_type_id' => $request->leave_type_id,
-                'period_year' => date('Y'),
-                'entitled_days' => $entitled,
-                'adjustment_days' => 0,
-                'used_days' => 0,
-                'remaining_days' => $entitled,
+                'transaction_type' => 'ADJUSTMENT',
+                'amount' => $request->amount,
+                'balance_before' => $before,
+                'balance_after' => $balance->remaining_days,
+                'reason' => $request->reason,
+                'created_by' => $request->user()->id,
             ]);
-        }
 
-        $before = $balance->remaining_days;
-        $balance->adjustment_days += $request->amount;
-        $balance->remaining_days = $balance->entitled_days + $balance->adjustment_days - $balance->used_days;
-        $balance->save();
+            \App\Models\AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'ADJUST_LEAVE_BALANCE',
+                'auditable_type' => \App\Models\LeaveBalance::class,
+                'auditable_id' => $balance->id,
+                'old_values' => ['remaining_days' => $before],
+                'new_values' => ['remaining_days' => $balance->remaining_days, 'amount' => $request->amount, 'reason' => $request->reason],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+            ]);
 
-        LeaveBalanceTransaction::create([
-            'leave_balance_id' => $balance->id,
-            'employee_id' => $request->employee_id,
-            'transaction_type' => 'ADJUSTMENT',
-            'amount' => $request->amount,
-            'balance_before' => $before,
-            'balance_after' => $balance->remaining_days,
-            'reason' => $request->reason,
-            'created_by' => $request->user()->id,
-        ]);
-
-        \App\Models\AuditLog::create([
-            'user_id' => $request->user()->id,
-            'action' => 'ADJUST_LEAVE_BALANCE',
-            'auditable_type' => \App\Models\LeaveBalance::class,
-            'auditable_id' => $balance->id,
-            'old_values' => ['remaining_days' => $before],
-            'new_values' => ['remaining_days' => $balance->remaining_days, 'amount' => $request->amount, 'reason' => $request->reason],
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'created_at' => now(),
-        ]);
+            return $balance;
+        });
 
         return response()->json(['success' => true, 'data' => $balance]);
     }

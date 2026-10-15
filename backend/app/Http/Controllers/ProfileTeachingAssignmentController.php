@@ -22,6 +22,7 @@ class ProfileTeachingAssignmentController extends Controller
     public function index(Request $request)
     {
         $user = $request->user()->load(['employee.position', 'roles']);
+        abort_if(!$user->employee, 403, 'Akun ini tidak terhubung ke data pegawai.');
         $isPegawai = $this->canManageTeaching($user);
         $employeeId = $request->query('employee_id');
 
@@ -40,6 +41,7 @@ class ProfileTeachingAssignmentController extends Controller
     public function store(Request $request)
     {
         $user = $request->user()->load(['employee.position', 'roles']);
+        abort_if(!$user->employee, 403, 'Akun ini tidak terhubung ke data pegawai.');
         $isPegawai = $this->canManageTeaching($user);
         if (!$isPegawai && !$user->hasRole('HRD')) {
             abort(403, 'Mata kuliah hanya untuk Dosen/Pegawai.');
@@ -72,6 +74,7 @@ class ProfileTeachingAssignmentController extends Controller
     {
         $user = $request->user();
         $user->employee?->loadMissing('position');
+        abort_if(!$user->employee, 403, 'Akun ini tidak terhubung ke data pegawai.');
         if (!$user->hasRole('HRD') && !$this->canManageTeaching($user)) {
             abort(403, 'Mata kuliah hanya untuk Dosen/Pegawai.');
         }
@@ -97,6 +100,7 @@ class ProfileTeachingAssignmentController extends Controller
     {
         $user = $request->user();
         $user->employee?->loadMissing('position');
+        abort_if(!$user->employee, 403, 'Akun ini tidak terhubung ke data pegawai.');
         if (!$user->hasRole('HRD') && !$this->canManageTeaching($user)) {
             abort(403, 'Mata kuliah hanya untuk Dosen/Pegawai.');
         }

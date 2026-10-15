@@ -21,14 +21,14 @@
 
     <table>
         <tr><td class="k">Nama Pegawai</td><td>{{ $leave->employee?->nama_lengkap ?? '-' }}</td></tr>
-        <tr><td class="k">NIK</td><td>{{ $leave->employee?->nik ?? '-' }}</td></tr>
+        <tr><td class="k">Nomor Induk Kepegawaian</td><td>{{ $leave->employee?->nik ?? '-' }}</td></tr>
         <tr><td class="k">Jenis Pengajuan</td><td>{{ $leave->leaveType?->name ?? 'Cuti' }}</td></tr>
         <tr><td class="k">Tanggal Mulai</td><td>{{ $leave->start_date?->format('d-m-Y') }}</td></tr>
         <tr><td class="k">Tanggal Selesai</td><td>{{ $leave->end_date?->format('d-m-Y') }}</td></tr>
         <tr><td class="k">Lama</td><td>{{ $leave->total_days }} hari kerja</td></tr>
         <tr><td class="k">Alasan</td><td>{{ $leave->reason ?? '-' }}</td></tr>
         <tr><td class="k">Status Akhir</td><td>{{ $leave->status }}</td></tr>
-        <tr><td class="k">Disetujui oleh Kepala Bagian</td><td>{{ $kabagName }} ({{ $kabagDate }})</td></tr>
+        <tr><td class="k">Disetujui oleh Atasan Langsung</td><td>{{ $kabagName }} ({{ $kabagDate }})</td></tr>
         <tr><td class="k">Difinalisasi oleh HRD</td><td>{{ $hrdName }} ({{ $hrdDate }})</td></tr>
     </table>
 
@@ -36,7 +36,7 @@
 
     <table class="sign">
         <tr>
-            <td>Kepala Bagian</td>
+            <td>Atasan Langsung</td>
             <td>HRD</td>
         </tr>
         <tr>

@@ -23,7 +23,9 @@ return new class extends Migration
         Schema::create('employee_functionals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->unique()->constrained()->cascadeOnDelete();
-            $table->enum('status_kepegawaian_detail', ['PNS', 'DPK', 'Non-PNS'])->nullable();
+            // Nilai "Tetap/Tidak Tetap" sesuai permintaan pemilik (lihat migrasi
+            // 2026_10_08_000002 yang mengubah enum lama PNS/DPK/Non-PNS).
+            $table->enum('status_kepegawaian_detail', ['Tetap', 'Tidak Tetap'])->nullable();
             $table->enum('jabatan_fungsional', ['Asisten Ahli', 'Lektor', 'Lektor Kepala', 'Guru Besar'])->nullable();
             $table->string('pangkat', 100)->nullable();
             $table->string('golongan_ruang', 50)->nullable();

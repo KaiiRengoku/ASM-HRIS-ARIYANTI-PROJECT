@@ -9,6 +9,7 @@ class Employee extends Model
     protected $fillable = [
         'organizational_unit_id',
         'position_id',
+        'supervisor_id',
         'nik',
         'nama_lengkap',
         'gelar_depan',
@@ -38,8 +39,8 @@ class Employee extends Model
     ];
 
     protected $casts = [
-        'tanggal_lahir' => 'date',
-        'tanggal_masuk_kerja' => 'date',
+        'tanggal_lahir' => 'date:Y-m-d',
+        'tanggal_masuk_kerja' => 'date:Y-m-d',
         'is_dosen' => 'boolean',
     ];
 
@@ -56,6 +57,17 @@ class Employee extends Model
     public function position()
     {
         return $this->belongsTo(Position::class, 'position_id');
+    }
+
+    // Atasan langsung: penyetuju tahap pertama alur cuti/izin.
+    public function supervisor()
+    {
+        return $this->belongsTo(Employee::class, 'supervisor_id');
+    }
+
+    public function subordinates()
+    {
+        return $this->hasMany(Employee::class, 'supervisor_id');
     }
 
     public function documents()
@@ -83,10 +95,15 @@ class Employee extends Model
         return $this->hasOne(EmployeeFunctional::class);
     }
 
-    public function teachingAssignments()
+    public function certifications()
     {
-        return $this->hasMany(TeachingAssignment::class);
+        return $this->hasMany(EmployeeCertification::class);
     }
+
+     public function teachingAssignments()
+     {
+         return $this->hasMany(TeachingAssignment::class);
+     }
 
     public function positionHistories()
     {

@@ -10,8 +10,10 @@ export interface Employee {
   id: number;
   organizational_unit_id: number | null;
   position_id: number | null;
+  supervisor_id: number | null;
   organizational_unit: string | null;
   position: string | null;
+  supervisor: { id: number; nama_lengkap: string; nik: string } | null;
   has_account?: boolean;
   account?: EmployeeAccount | null;
   nik: string;
@@ -37,6 +39,7 @@ export interface Employee {
   tanggal_lahir: string | null;
   tanggal_masuk_kerja: string | null;
   status_kepegawaian: string | null;
+  is_dosen?: boolean;
   nomor_rekening: string | null;
   foto_path: string | null;
   educations?: { jenjang: string; nama_pt?: string | null; jurusan?: string | null; tahun_masuk?: string | null; tahun_lulus?: string | null }[];
@@ -58,6 +61,7 @@ export interface EmployeePayload {
   alamat?: string;
   is_dosen?: boolean;
   position_id?: number | null;
+  supervisor_id?: number | null;
   role?: string;
   password?: string;
 }
@@ -73,7 +77,7 @@ export interface EmployeeListResponse {
   };
 }
 
-export const getEmployees = async (params: { page?: number; search?: string; per_page?: number }): Promise<EmployeeListResponse> => {
+export const getEmployees = async (params: { page?: number; search?: string; per_page?: number; tanpa_atasan?: boolean }): Promise<EmployeeListResponse> => {
   const response = await api.get('/employees', { params });
   return response.data;
 };

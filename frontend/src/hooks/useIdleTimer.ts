@@ -14,8 +14,13 @@ export function useIdleTimer() {
     }
     if (isAuthenticated) {
       timeoutRef.current = setTimeout(async () => {
-        await logout();
-        logoutStore();
+        try {
+          await logout();
+        } finally {
+          // Selalu bersihkan state lokal walau jaringan/server gagal, agar sesi
+          // tidak tertinggal di perangkat bersama.
+          logoutStore();
+        }
       }, IDLE_TIMEOUT);
     }
   };

@@ -12,34 +12,145 @@
   --color-danger: #B42318;
   --color-info: #2563EB;
 
-  --color-background: #FFFFFF;
-  --color-foreground: #000000;
+  --color-background: #F7F6F4;
+  --color-foreground: #1C1917;
   --color-card: #FFFFFF;
-  --color-card-foreground: #000000;
+  --color-card-foreground: #1C1917;
   --color-popover: #FFFFFF;
-  --color-popover-foreground: #000000;
-  --color-muted: #E8E8E8;
-  --color-muted-foreground: #666666;
-  --color-accent: #E8E8E8;
-  --color-accent-foreground: #000000;
+  --color-popover-foreground: #1C1917;
+  --color-muted: #F1EFEC;
+  --color-muted-foreground: #78716C;
+  --color-accent: #FDECEC;
+  --color-accent-foreground: #A80000;
   --color-destructive: #B42318;
   --color-destructive-foreground: #FFFFFF;
-  --color-border: #E8E8E8;
-  --color-input: #E8E8E8;
+  --color-border: #E9E5E1;
+  --color-input: #E0DBD6;
   --color-ring: #D30000;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
   --radius-full: 999px;
+
+  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 4px 16px -4px rgb(28 25 23 / 0.08);
+  --shadow-pop: 0 8px 32px -8px rgb(28 25 23 / 0.18);
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: rgb(211 0 0 / 0.16);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #D6D0CA;
+    border-radius: 8px;
+    border: 2px solid #F7F6F4;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #B8AFA7;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer utilities {
+  .animate-page-in {
+    animation: page-in 0.35s ease-out both;
+  }
+}
+
+/* Tailwind v4 di proyek ini tanpa plugin animate, jadi animasi toast ditulis manual.
+   Radix memasang data-state=open/closed pada Root; use-toast menahan elemen sebentar
+   (TOAST_REMOVE_DELAY) setelah ditutup agar animasi keluar sempat tampil. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+/* @utility, bukan @layer utilities: Tailwind v4 hanya meng-generate varian
+   (data-[state=open]:...) untuk utility yang didaftarkan lewat @utility. */
+@utility animate-toast-in {
+  /* backwards, bukan both: kalau fill-nya menahan nilai akhir, transform:none akan
+     menimpa transform swipe-to-dismiss milik Radix selamanya. */
+  animation: toast-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@utility animate-toast-out {
+  animation: toast-out 0.18s ease-in forwards;
+}
+
+/* Centang toast sukses: digores masuk lewat stroke-dashoffset.
+   Panjang path: lingkaran r=10 -> ~63, tanda centang m9 12 2 2 4-4 -> ~8.5. */
+@keyframes check-circle {
+  from {
+    stroke-dashoffset: 63;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes check-mark {
+  from {
+    stroke-dashoffset: 9;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@layer utilities {
+  .animate-check-circle {
+    stroke-dasharray: 63;
+    animation: check-circle 0.45s ease-out backwards;
+  }
+  .animate-check-mark {
+    stroke-dasharray: 9;
+    animation: check-mark 0.3s ease-out 0.3s backwards;
   }
 }

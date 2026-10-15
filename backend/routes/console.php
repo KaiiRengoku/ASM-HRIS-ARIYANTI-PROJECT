@@ -8,5 +8,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Kebutuhan §2.2: akrual jatah cuti tahunan otomatis setiap 1 Januari.
-Schedule::command('leave:accrue')->yearly()->timezone('Asia/Jakarta');
+// DINONAKTIFKAN sesuai keputusan stakeholder (Dokumen Projek/Kesimpulansistemcuti.md §2):
+// saldo cuti sepenuhnya diisi manual oleh HRD, sistem tidak lagi mengakru otomatis.
+// Kode perintah leave:accrue tetap ada agar bisa diaktifkan kembali bila kebijakan berubah.
+// Schedule::command('leave:accrue')->yearly()->timezone('Asia/Jakarta');

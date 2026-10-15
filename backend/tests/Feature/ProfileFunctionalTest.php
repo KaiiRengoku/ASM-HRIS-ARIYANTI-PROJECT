@@ -63,6 +63,7 @@ class ProfileFunctionalTest extends TestCase
     {
         $response = $this->actingAs($this->lecturerUser)->putJson('/api/profile/functional', [
             'pangkat' => 'Penata',
+            'status_kepegawaian_detail' => 'Tetap',
         ]);
 
         $response->assertOk();
@@ -74,7 +75,7 @@ class ProfileFunctionalTest extends TestCase
         $response = $this->actingAs($this->hrdUser)->putJson('/api/profile/functional', [
             'pangkat' => 'Penata',
             'golongan_ruang' => 'III/c',
-            'jabatan_fungsional' => 'Lektor',
+            'status_kepegawaian_detail' => 'Tidak Tetap',
         ]);
 
         $response->assertOk();
@@ -82,6 +83,7 @@ class ProfileFunctionalTest extends TestCase
             'employee_id' => $this->hrdUser->employee->id,
             'pangkat' => 'Penata',
             'golongan_ruang' => 'III/c',
+            'status_kepegawaian_detail' => 'Tidak Tetap',
         ]);
     }
 

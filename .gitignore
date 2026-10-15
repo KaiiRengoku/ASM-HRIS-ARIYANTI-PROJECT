@@ -1,0 +1,22 @@
+node_modules/
+**/node_modules/
+dist/
+.env
+*.sqlite
+*.bin
+proxy_pdf.bin
+doc_1.bin
+doc_4.bin
+Dokumen Projek/
+DAFTAR_AKUN_TESTING.md
+*AKUN*
+
+# Artefak lokal / file kerja — jangan ikut ke repo
+.playwright-mcp/
+.review_diff.txt
+Kebutuhanfungsional.md
+Screenshot Sistem/
+backend/public/assets/
+backend/public/index.html
+backend/public/*.bak-*/
+backend/database/seeders/ScreenshotDemoSeeder.php

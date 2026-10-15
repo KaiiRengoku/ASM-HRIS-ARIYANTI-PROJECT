@@ -19,14 +19,14 @@ class EmployeeFormalFieldsTest extends TestCase
         parent::setUp();
 
         $employee = Employee::create([
-            'nik' => '1234567890123457',
+            'nik' => '447199000',
             'nama_lengkap' => 'HRD Contoh',
             'email' => 'hrd@example.com',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 
         $user = User::create([
-            'nik' => '1234567890123457',
+            'nik' => '447199000',
             'name' => 'HRD',
             'email' => 'hrd@example.com',
             'password' => 'password',
@@ -44,7 +44,7 @@ class EmployeeFormalFieldsTest extends TestCase
     {
         \App\Models\Role::firstOrCreate(['code' => 'PEGAWAI'], ['name' => 'Dosen & Pegawai']);
         $response = $this->actingAs($this->hrdUser)->postJson('/api/employees', [
-            'nik' => '1234567890123456',
+            'nik' => '447199001',
             'nama_lengkap' => 'Dosen Contoh',
             'email' => 'dosen@example.com',
             'tanggal_masuk_kerja' => '2020-01-15',
@@ -60,7 +60,7 @@ class EmployeeFormalFieldsTest extends TestCase
         ]);
 
         $response->assertCreated();
-        $this->assertDatabaseHas('employees', ['nik' => '1234567890123456', 'gelar_depan' => 'Dr.']);
+        $this->assertDatabaseHas('employees', ['nik' => '447199001', 'gelar_depan' => 'Dr.']);
         $response->assertJsonPath('data.gelar_depan', 'Dr.');
         $response->assertJsonPath('data.gelar_belakang', 'M.Kom.');
         $response->assertJsonPath('data.tempat_lahir', 'Jakarta');
@@ -73,13 +73,13 @@ class EmployeeFormalFieldsTest extends TestCase
     public function test_hrd_updates_employee_with_linked_account_keeps_email(): void
     {
         $employee = Employee::create([
-            'nik' => '1234567890123412',
+            'nik' => '447199002',
             'nama_lengkap' => 'Pegawai Akun',
             'email' => 'akun@example.com',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
         $user = User::create([
-            'nik' => '1234567890123412',
+            'nik' => '447199002',
             'name' => 'Pegawai Akun',
             'email' => 'akun@example.com',
             'password' => 'password',
@@ -90,7 +90,7 @@ class EmployeeFormalFieldsTest extends TestCase
         $employee->save();
 
         $response = $this->actingAs($this->hrdUser)->putJson("/api/employees/{$employee->id}", [
-            'nik' => '1234567890123412',
+            'nik' => '447199002',
             'nama_lengkap' => 'Pegawai Akun',
             'email' => 'akun@example.com',
         ]);
@@ -102,14 +102,14 @@ class EmployeeFormalFieldsTest extends TestCase
     public function test_hrd_updates_employee_with_formal_identity_fields(): void
     {
         $employee = Employee::create([
-            'nik' => '1234567890123411',
+            'nik' => '447199003',
             'nama_lengkap' => 'Pegawai Lama',
             'email' => 'lama@example.com',
             'tanggal_masuk_kerja' => '2020-01-15',
         ]);
 
         $response = $this->actingAs($this->hrdUser)->putJson("/api/employees/{$employee->id}", [
-            'nik' => '1234567890123411',
+            'nik' => '447199003',
             'nama_lengkap' => 'Pegawai Lama',
             'email' => 'lama@example.com',
             'gelar_depan' => 'Hj.',

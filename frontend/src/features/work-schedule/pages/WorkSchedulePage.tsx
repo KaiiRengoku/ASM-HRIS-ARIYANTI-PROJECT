@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/components/ui/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -42,6 +43,7 @@ export default function WorkSchedulePage() {
     const [effectiveFrom, setEffectiveFrom] = useState('');
     const [effectiveUntil, setEffectiveUntil] = useState('');
     const [isActive, setIsActive] = useState(true);
+    const [confirmDelete, setConfirmDelete] = useState<any>(null);
 
     const queryClient = useQueryClient();
     const { hasPermission } = useAuthStore();
@@ -218,6 +220,36 @@ export default function WorkSchedulePage() {
 
             <Card>
                 <CardContent className="p-0">
+                    {/* Mobile: kartu per jadwal — tabel 7 kolom tak muat di layar sempit. */}
+                    <div className="divide-y md:hidden">
+                        {schedules?.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">Belum ada jam kerja</p>
+                        ) : (
+                            schedules?.map((s: any) => (
+                                <div key={s.id} className="space-y-3 p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="font-medium">{days[s.day_of_week - 1]}</p>
+                                            <p className="truncate text-xs text-muted-foreground" title={s.organizational_unit?.name || 'Global'}>{s.organizational_unit?.name || 'Global'}</p>
+                                        </div>
+                                        <span className="shrink-0 whitespace-nowrap rounded-full bg-muted px-2 py-1 text-xs">{s.is_active ? 'Aktif' : 'Tidak'}</span>
+                                    </div>
+                                    <dl className="grid grid-cols-3 gap-x-3 gap-y-2 text-xs">
+                                        <div><dt className="text-muted-foreground">Mulai</dt><dd>{s.start_time}</dd></div>
+                                        <div><dt className="text-muted-foreground">Selesai</dt><dd>{s.end_time}</dd></div>
+                                        <div><dt className="text-muted-foreground">Hari Kerja</dt><dd>{s.is_working_day ? 'Ya' : 'Tidak'}</dd></div>
+                                    </dl>
+                                    {isHrd && (
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => openEdit(s)}>Edit</Button>
+                                            <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(s)}>Hapus</Button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className="hidden md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -247,7 +279,7 @@ export default function WorkSchedulePage() {
                                         {isHrd && (
                                         <TableCell className="text-right space-x-2">
                                             <Button variant="outline" size="sm" onClick={() => openEdit(s)}>Edit</Button>
-                                            <Button variant="destructive" size="sm" onClick={() => deleteMutation.mutate(s.id)}>Hapus</Button>
+                                            <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(s)}>Hapus</Button>
                                         </TableCell>
                                         )}
                                     </TableRow>
@@ -255,8 +287,19 @@ export default function WorkSchedulePage() {
                             )}
                         </TableBody>
                     </Table>
+                    </div>
                 </CardContent>
             </Card>
+
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}
+                title="Hapus Jam Kerja"
+                description={`Hapus jam kerja ${confirmDelete ? days[confirmDelete.day_of_week - 1] : ''} (${confirmDelete?.organizational_unit?.name || 'Global'})? Tindakan ini permanen.`}
+                confirmLabel="Hapus"
+                destructive
+                onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); }}
+            />
         </div>
     );
 }

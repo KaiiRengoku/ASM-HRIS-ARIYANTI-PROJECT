@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\Position;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -19,7 +20,7 @@ class EmployeeController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Employee::with(['organizationalUnit', 'position', 'user.roles']);
+        $query = Employee::with(['organizationalUnit', 'position', 'supervisor', 'user.roles']);
 
         if ($search = $request->search) {
             $query->where(function ($q) use ($search) {
@@ -29,6 +30,11 @@ class EmployeeController extends Controller
                   ->orWhere('nidn', 'LIKE', "%{$search}%")
                   ->orWhere('email', 'LIKE', "%{$search}%");
             });
+        }
+
+        // Filter pegawai yang belum punya atasan langsung (untuk pemetaan HRD).
+        if ($request->boolean('tanpa_atasan')) {
+            $query->whereNull('supervisor_id');
         }
 
         $employees = $query->latest()->paginate($request->per_page ?? 20);
@@ -57,10 +63,10 @@ class EmployeeController extends Controller
             if (!empty($validated['position_id'])) {
                 $employee->position_id = $validated['position_id'];
             } else {
-                $employee->position_id = Position::firstOrCreate(
-                    ['code' => $role->code],
-                    ['name' => $role->name, 'is_active' => true]
-                )->id;
+                // IKATAN JABATAN-ROLE DILEPAS: jabatan TIDAK lagi dibuat otomatis dari nama role.
+                // Bila tidak dipilih, pakai jabatan umum "PEGAWAI" (bila ada) agar perilaku jelas;
+                // bila master jabatan belum ada, biarkan kosong (NULL).
+                $employee->position_id = Position::where('code', 'PEGAWAI')->value('id');
             }
             $employee->user_id = $user->id;
             $employee->save();
@@ -79,18 +85,19 @@ class EmployeeController extends Controller
             'created_at' => now(),
         ]);
 
-        return (new EmployeeResource($employee->load(['organizationalUnit', 'position', 'user.roles'])))->response()->setStatusCode(201);
+        return (new EmployeeResource($employee->load(['organizationalUnit', 'position', 'supervisor', 'user.roles'])))->response()->setStatusCode(201);
     }
 
     public function show(Request $request, Employee $employee)
     {
-        return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'user.roles', 'educations', 'positionHistories']));
+        return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'supervisor', 'user.roles', 'educations', 'positionHistories', 'certifications']));
     }
 
     public function update(UpdateEmployeeRequest $request, Employee $employee)
     {
-        $old = $employee->only(['nik', 'nama_lengkap', 'email']);
         $validated = $request->validated();
+        // Catat semua field yang diubah, bukan hanya 3, supaya jejak audit utuh.
+        $old = $employee->only(array_keys($validated));
 
         DB::transaction(function () use ($employee, $validated) {
             $employee->update($validated);
@@ -110,25 +117,37 @@ class EmployeeController extends Controller
             'auditable_type' => Employee::class,
             'auditable_id' => $employee->id,
             'old_values' => $old,
-            'new_values' => $employee->only(['nik', 'nama_lengkap', 'email']),
+            'new_values' => $employee->only(array_keys($validated)),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'created_at' => now(),
         ]);
 
-        return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'user.roles']));
+        return new EmployeeResource($employee->load(['organizationalUnit', 'position', 'supervisor', 'user.roles']));
     }
 
     public function destroy(Request $request, Employee $employee)
     {
         $employee->loadMissing('user');
-        DB::transaction(function () use ($employee) {
-            if ($employee->user) {
-                $employee->user->roles()->detach();
-                $employee->user->delete();
+        try {
+            DB::transaction(function () use ($employee) {
+                if ($employee->user) {
+                    $employee->user->roles()->detach();
+                    $employee->user->delete();
+                }
+                $employee->delete();
+            });
+        } catch (QueryException $e) {
+            // FK RESTRICT: pegawai masih dipakai riwayat cuti/saldo/dokumen.
+            // Nonaktifkan, jangan hapus — riwayat wajib disimpan HRIS.
+            if ($e->getCode() === '23000') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pegawai masih memiliki riwayat cuti/saldo/dokumen. Nonaktifkan akunnya, jangan hapus datanya.',
+                ], 422);
             }
-            $employee->delete();
-        });
+            throw $e;
+        }
 
         AuditLog::create([
             'user_id' => $request->user()->id,
@@ -152,9 +171,28 @@ class EmployeeController extends Controller
             'position_id' => ['nullable', 'exists:positions,id'],
         ]);
 
+        // Hanya HRD (admin akun) yang boleh mengubah role/kata sandi akun lain.
+        // Route juga sudah dijaga middleware role:HRD + permission:auth.user.update;
+        // pengecekan ini melindungi method dari pemanggilan internal di masa depan.
+        if (!$request->user()->hasRole('HRD')) {
+            return response()->json(['success' => false, 'message' => 'Hanya HRD yang dapat mengubah akun pengguna.'], 403);
+        }
+
         $user = $employee->user;
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Pegawai ini belum memiliki akun.'], 404);
+        }
+
+        // Guard "tidak dapat mengubah role akun sendiri" sementara dimatikan atas permintaan pemilik.
+
+        // Jaring pengaman: jangan sampai sistem kehilangan admin terakhir. Menurunkan
+        // role HRD (akun sendiri atau akun HRD lain) ditolak bila ini satu-satunya HRD.
+        $isCurrentlyHrd = $user->roles()->where('code', 'HRD')->exists();
+        if ($isCurrentlyHrd && $request->role !== 'HRD') {
+            $hrdCount = User::whereHas('roles', fn ($q) => $q->where('code', 'HRD'))->count();
+            if ($hrdCount <= 1) {
+                return response()->json(['success' => false, 'message' => 'Tidak dapat menghapus role HRD terakhir. Tambahkan HRD lain terlebih dahulu.'], 400);
+            }
         }
 
         DB::transaction(function () use ($request, $employee, $user) {
@@ -169,10 +207,9 @@ class EmployeeController extends Controller
             if ($request->filled('position_id')) {
                 $employee->position_id = $request->position_id;
             } else {
-                $employee->position_id = Position::firstOrCreate(
-                    ['code' => $role->code],
-                    ['name' => $role->name, 'is_active' => true]
-                )->id;
+                // IKATAN JABATAN-ROLE DILEPAS: jabatan TIDAK lagi dibuat otomatis dari nama role.
+                // Bila tidak dipilih, pakai jabatan umum "PEGAWAI" (bila ada); bila belum ada, kosong (NULL).
+                $employee->position_id = Position::where('code', 'PEGAWAI')->value('id');
             }
             $employee->save();
         });
@@ -182,7 +219,12 @@ class EmployeeController extends Controller
             'action' => 'UPDATE_ACCOUNT',
             'auditable_type' => User::class,
             'auditable_id' => $user->id,
-            'new_values' => ['role' => $request->role, 'password_changed' => $request->filled('password')],
+            'new_values' => [
+                'role' => $request->role,
+                'password_changed' => $request->filled('password'),
+                'actor_role' => $request->user()->roles()->pluck('code')->all(),
+                'target_user_id' => $user->id,
+            ],
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'created_at' => now(),

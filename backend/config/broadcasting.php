@@ -36,10 +36,15 @@ return [
             'secret' => env('REVERB_APP_SECRET'),
             'app_id' => env('REVERB_APP_ID'),
             'options' => [
-                'host' => env('REVERB_HOST'),
-                'port' => env('REVERB_PORT', 443),
-                'scheme' => env('REVERB_SCHEME', 'https'),
-                'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
+                // PENTING: 'host' di sini adalah alamat TUJUAN koneksi keluar
+                // (Laravel -> Reverb saat mem-broadcast), BUKAN alamat bind server.
+                // REVERB_HOST dipakai untuk bind (boleh 0.0.0.0), tetapi 0.0.0.0
+                // TIDAK BISA dihubungi sebagai klien (cURL error 7). Karena itu
+                // gunakan REVERB_BROADCAST_HOST (default 127.0.0.1) untuk koneksi.
+                'host' => env('REVERB_BROADCAST_HOST', env('REVERB_HOST', '127.0.0.1') === '0.0.0.0' ? '127.0.0.1' : env('REVERB_HOST', '127.0.0.1')),
+                'port' => env('REVERB_BROADCAST_PORT', env('REVERB_PORT', 8080)),
+                'scheme' => env('REVERB_BROADCAST_SCHEME', env('REVERB_SCHEME', 'http')),
+                'useTLS' => env('REVERB_BROADCAST_SCHEME', env('REVERB_SCHEME', 'http')) === 'https',
             ],
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html

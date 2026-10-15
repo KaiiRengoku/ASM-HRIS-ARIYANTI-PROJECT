@@ -40,13 +40,25 @@ class KabagScopeNotificationTest extends TestCase
         ]);
     }
 
+    // Tanggal ≥7 hari ke depan yang jatuh pada hari kerja, agar tidak kena
+    // guard "minimal 1 minggu" maupun WorkingDayService (0 hari kerja bila akhir pekan).
+    private function tanggalKerja(): string
+    {
+        $d = now()->addDays(8);
+        while ($d->isWeekend()) {
+            $d->addDay();
+        }
+
+        return $d->toDateString();
+    }
+
     private function pendingLeave(User $pemohon, LeaveType $type): LeaveRequest
     {
         return LeaveRequest::create([
             'employee_id' => $pemohon->employee_id,
             'leave_type_id' => $type->id,
-            'start_date' => now()->addWeek()->toDateString(),
-            'end_date' => now()->addWeek()->toDateString(),
+            'start_date' => $this->tanggalKerja(),
+            'end_date' => $this->tanggalKerja(),
             'total_days' => 1,
             'status' => 'Pending',
             'submitted_at' => now(),
@@ -97,8 +109,8 @@ class KabagScopeNotificationTest extends TestCase
 
         $this->actingAs($bawahan)->postJson('/api/leaves', [
             'leave_type_id' => $type->id,
-            'start_date' => now()->addWeek()->toDateString(),
-            'end_date' => now()->addWeek()->toDateString(),
+            'start_date' => $this->tanggalKerja(),
+            'end_date' => $this->tanggalKerja(),
         ])->assertOk();
 
         $this->assertDatabaseHas('notifications', [
@@ -108,8 +120,8 @@ class KabagScopeNotificationTest extends TestCase
         // pengaju tanpa unit → fallback: semua kabag tetap terkabari
         $this->actingAs($luarUnit)->postJson('/api/leaves', [
             'leave_type_id' => $type->id,
-            'start_date' => now()->addWeek()->toDateString(),
-            'end_date' => now()->addWeek()->toDateString(),
+            'start_date' => $this->tanggalKerja(),
+            'end_date' => $this->tanggalKerja(),
         ])->assertOk();
 
         $this->assertSame(2, Notification::where('user_id', $kabag->id)->where('type', 'leave_submitted')->count());
@@ -123,8 +135,8 @@ class KabagScopeNotificationTest extends TestCase
         $type = $this->annualType();
         $this->actingAs($kabag)->postJson('/api/leaves', [
             'leave_type_id' => $type->id,
-            'start_date' => now()->addWeek()->toDateString(),
-            'end_date' => now()->addWeek()->toDateString(),
+            'start_date' => $this->tanggalKerja(),
+            'end_date' => $this->tanggalKerja(),
         ])->assertOk();
 
         $this->assertSame(0, Notification::where('user_id', $kabag->id)->where('type', 'leave_submitted')->count());

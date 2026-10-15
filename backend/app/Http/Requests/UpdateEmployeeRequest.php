@@ -21,7 +21,9 @@ class UpdateEmployeeRequest extends FormRequest
         return [
             'organizational_unit_id' => ['nullable', 'exists:organizational_units,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
-            'nik' => ['required', 'string', 'size:16', 'regex:/^[0-9]{16}$/', Rule::unique('employees', 'nik')->ignore($id), Rule::unique('users', 'nik')->ignore($userId)],
+            // Atasan langsung tidak boleh diri sendiri (mencegah alur approval menggantung).
+            'supervisor_id' => ['nullable', 'exists:employees,id', Rule::notIn([$id])],
+            'nik' => ['required', 'string', 'size:9', 'regex:/^[0-9]{9}$/', Rule::unique('employees', 'nik')->ignore($id), Rule::unique('users', 'nik')->ignore($userId)],
             'nama_lengkap' => ['required', 'string', 'max:150'],
             'gelar_depan' => ['nullable', 'string', 'max:50'],
             'gelar_belakang' => ['nullable', 'string', 'max:50'],
@@ -51,10 +53,10 @@ class UpdateEmployeeRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nik.required' => 'NIK wajib diisi.',
-            'nik.size' => 'NIK harus 16 digit.',
-            'nik.regex' => 'NIK harus 16 digit numerik (hanya angka).',
-            'nik.unique' => 'NIK sudah terdaftar, gunakan NIK lain.',
+            'nik.required' => 'Nomor Induk Kepegawaian wajib diisi.',
+            'nik.size' => 'Nomor Induk Kepegawaian harus tepat 9 digit angka.',
+            'nik.regex' => 'Nomor Induk Kepegawaian hanya boleh berisi angka.',
+            'nik.unique' => 'Nomor Induk Kepegawaian sudah terdaftar, gunakan yang lain.',
             'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
             'tanggal_masuk_kerja.required' => 'Tanggal masuk wajib diisi.',
             'role.required' => 'Role wajib dipilih.',
