@@ -27,6 +27,8 @@
             <th>Posisi</th>
             <th>Unit</th>
             <th>Status</th>
+            <th>Telepon</th>
+            <th>Tanggal Masuk</th>
             <th>Lama Kerja</th>
         </tr>
         @foreach($employees as $emp)
@@ -45,9 +47,12 @@
             <td>{{ $emp->nik }}</td>
             <td>{{ $emp->nama_lengkap }}</td>
             <td>{{ $emp->position?->name ?? '' }}</td>
+            <td>{{ $emp->jabatan_utama ?? '' }}</td>
             <td>{{ $emp->organizationalUnit?->name ?? '' }}</td>
             <td>{{ $emp->status_kepegawaian ?? '' }}</td>
-            <td>@php($tahun = now()->diffInYears($emp->tanggal_masuk_kerja, false)) {{ $tahun > 0 ? $tahun . ' tahun' : '< 1 tahun' }}</td>
+            <td>{{ $emp->nomor_hp ?? '' }}</td>
+            <td>{{ $emp->tanggal_masuk_kerja?->format('Y-m-d') ?? '' }}</td>
+            <td>@if($emp->tanggal_masuk_kerja) @php($tahun = now()->diffInYears($emp->tanggal_masuk_kerja, true)) {{ $tahun >= 1 ? (int) floor($tahun) . ' tahun' : '< 1 tahun' }} @else - @endif</td>
         </tr>
         @endforeach
     </table>

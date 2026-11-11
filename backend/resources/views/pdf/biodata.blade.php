@@ -67,7 +67,7 @@
         <div class="row"><span class="label">Unit Kerja</span> {{ $employee->functional?->unit_kerja ?? $employee->organizationalUnit?->name ?? '-' }}</div>
         <div class="row"><span class="label">Jabatan</span> {{ $employee->position?->name ?? '-' }}@if($employee->jabatan_utama) (Merangkap: {{ $employee->jabatan_utama }}) @endif</div>
         <div class="row"><span class="label">Tanggal Masuk</span> {{ $employee->tanggal_masuk_kerja ?? '-' }}</div>
-        <div class="row"><span class="label">Lama Kerja</span> @php($tahun = now()->diffInYears($employee->tanggal_masuk_kerja, false)) {{ $tahun > 0 ? $tahun . ' tahun' : '< 1 tahun' }}</div>
+        <div class="row"><span class="label">Lama Kerja</span> @if($employee->tanggal_masuk_kerja) @php($tahun = now()->diffInYears($employee->tanggal_masuk_kerja, true)) {{ $tahun >= 1 ? (int) floor($tahun) . ' tahun' : '< 1 tahun' }} @else - @endif</div>
     </div>
 
     <h2>C.1 RIWAYAT JABATAN</h2>

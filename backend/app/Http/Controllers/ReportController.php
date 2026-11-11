@@ -36,15 +36,21 @@ class ReportController extends Controller
     }
 
     // Hitung durasi masa kerja (tahun) dari tanggal_masuk_kerja.
-    private function durasiMasaKerja(?string $tanggalMasuk): string
+    // Publik agar bisa diuji regresi langsung (EmployeeExportLamaKerjaTest).
+    public function durasiMasaKerja(?string $tanggalMasuk): string
     {
         if (!$tanggalMasuk) {
             return '';
         }
         try {
             $masuk = \Carbon\Carbon::parse($tanggalMasuk);
-            $tahun = now()->diffInYears($masuk, false);
-            return $tahun > 0 ? (int) $tahun . ' tahun' : '< 1 tahun';
+            // Carbon 3: diffInYears(..., false) menghasilkan signed NEGATIF
+            // untuk tanggal lampau → guard `$tahun > 0` selalu false.
+            // Pakai absolute (true) agar lama kerja benar.
+            $tahun = now()->diffInYears($masuk, true);
+            // Floor ke tahun penuh yang benar-benar sudah dilalui
+            // (2 tahun 6 bulan → 2 tahun; 14 bulan → 1 tahun).
+            return $tahun >= 1 ? (int) floor($tahun) . ' tahun' : '< 1 tahun';
         } catch (\Exception) {
             return '';
         }
@@ -306,7 +312,6 @@ public function exportEmployeesPdf(Request $request)
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.employees', [
         'employees' => $employees,
         'photos' => $photos,
-        'controller' => $this,
     ]);
     $this->audit($request, 'reports/employees/pdf', Employee::class, 0);
     return $pdf->download('pegawai_' . date('Y-m-d') . '.pdf');

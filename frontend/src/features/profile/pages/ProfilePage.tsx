@@ -26,6 +26,7 @@ interface Employee {
     jenis_kelamin?: string | null;
     agama?: string | null;
     status_pernikahan?: string | null;
+    jabatan_utama?: string | null;
     position?: { id: number; name: string; code?: string | null } | null;
     alamat_ktp?: string | null;
     alamat_domisili?: string | null;
@@ -234,7 +235,7 @@ export default function ProfilePage() {
             return res.data.data as ProfileData;
         },
     });
-    const [jabatanUtama, setJabatanUtama] = useState('');
+    const [jabatanUtama, setJabatanUtama] = useState<string | null>(null);
 
     const { data: education } = useQuery({
         queryKey: ['profile-education'],
@@ -259,6 +260,14 @@ export default function ProfilePage() {
     const rolesProfil = profile?.roles ?? [];
     const punyaRoleDosen = rolesProfil.some((r) => (r.code ?? r.name) === 'DOSEN');
     const isDosen = Boolean(profile?.is_dosen) || punyaRoleDosen;
+
+    // Init jabatan utama dari profil setelah data profile termuat,
+    // agar HRD yang mengisi di Form Pegawai tidak terhapus saat pegawai
+    // menyimpan Data Pribadi tanpa menyentuh field ini.
+    const jabatanUtamaTerisi = employee?.jabatan_utama ?? null;
+    useEffect(() => {
+        setJabatanUtama(jabatanUtamaTerisi);
+    }, [jabatanUtamaTerisi]);
 
     const { data: assignments } = useQuery({
         queryKey: ['profile-teaching-assignments'],
@@ -367,7 +376,10 @@ export default function ProfilePage() {
                 agama: data.agama || null,
                 status_pernikahan: data.status_pernikahan || null,
                 // Jabatan utama: opsional, hanya diisi oleh orang yang merangkap.
-                jabatan_utama: jabatanUtama || null,
+                // null = user tak menyentuh field ini → backend tidak menimpa
+                // nilai yang sudah ada di database (HRD isi di Form Pegawai).
+                // String kosong ('') = user sengaja menghapus.
+                jabatan_utama: jabatanUtama === null ? undefined : jabatanUtama,
             });
             toast({ title: 'Berhasil', description: 'Data identitas diperbarui.' });
             queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -463,7 +475,7 @@ export default function ProfilePage() {
                     <TabsTrigger value="pribadi">Data Pribadi</TabsTrigger>
                     <TabsTrigger value="pendidikan">Pendidikan</TabsTrigger>
                     <TabsTrigger value="sertifikasi">Sertifikasi & Pelatihan</TabsTrigger>
-                    {isDosen && <TabsTrigger value="fungsional">Pangkat & Fungsional</TabsTrigger>}
+                    <TabsTrigger value="fungsional">Pangkat & Fungsional</TabsTrigger>
                     {isDosen && <TabsTrigger value="matkul">Mata Kuliah</TabsTrigger>}
                     <TabsTrigger value="jabatan">Riwayat Jabatan</TabsTrigger>
                     {isDosen && <TabsTrigger value="penelitian">Penelitian & Pernyataan</TabsTrigger>}
@@ -484,7 +496,7 @@ export default function ProfilePage() {
                                 <div className="space-y-2 pt-2">
                                     <Label>Jabatan Utama (untuk orang merangkap)</Label>
                                     <Input
-                                        value={jabatanUtama}
+                                        value={jabatanUtama ?? ''}
                                         onChange={(e) => setJabatanUtama(e.target.value)}
                                         placeholder="mis. DOSEN, KABAG, DIREKTUR — kosongkan bila tidak merangkap"
                                     />
@@ -822,7 +834,6 @@ export default function ProfilePage() {
                 </TabsContent>
 
 
-                {isDosen && (
                 <TabsContent value="fungsional">
                     <Card>
                         <CardHeader>
@@ -968,7 +979,6 @@ export default function ProfilePage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                )}
 
                 <TabsContent value="jabatan">
                     <Card>
