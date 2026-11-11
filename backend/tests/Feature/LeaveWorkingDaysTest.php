@@ -99,10 +99,12 @@ class LeaveWorkingDaysTest extends TestCase
         $type = $this->buatAnnualDenganSaldo($employee);
         [$fri, $mon] = $this->fridayMondayFuture();
 
-        $this->actingAs($peg)->postJson('/api/leaves', [
+        $res = $this->actingAs($peg)->postJson('/api/leaves', [
             'leave_type_id' => $type->id,
             'start_date' => $fri,
             'end_date' => $mon,
-        ])->assertOk()->assertJsonPath('data.total_days', '2.00');
+        ]);
+        $res->assertOk();
+        $this->assertContains($res->json('data.total_days'), ['2.00', 2.0, 2]);
     }
 }

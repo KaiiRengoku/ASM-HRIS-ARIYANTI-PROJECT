@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Employee;
+use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\Role;
 use App\Models\User;
@@ -49,6 +50,8 @@ class LeaveWithoutBalanceTest extends TestCase
 
     // Dosen hanya boleh mengajukan Izin (bukan Cuti), jadi skenario "jenis
     // pemotong saldo tanpa saldo" diuji dengan pegawai.
+    // Catatan: Pengajuan TIDAK DIBLOKIR bila tidak ada saldo -
+    // Saldo akan otomatis dibuat saat HRD finalisasi.
     public function test_pegawai_baru_tanpa_saldo_tetap_bisa_mengajukan(): void
     {
         $pegawai = $this->buatUser('1234567890123456', 'PEGAWAI');
@@ -71,6 +74,45 @@ class LeaveWithoutBalanceTest extends TestCase
             'employee_id' => $pegawai->employee_id,
             'status' => 'Pending',
         ]);
+    }
+
+    // New test: HRD finalisasi cuti tanpa saldo → auto-create saldo
+    public function test_hrd_finalisasi_cuti_tanpa_saldo_auto_create(): void
+    {
+        $hrd = $this->buatUser('1234567890123457', 'HRD');
+        $pegawai = $this->buatUser('1234567890123458', 'PEGAWAI');
+        $annual = LeaveType::create([
+            'name' => 'Cuti Tahunan', 'code' => 'ANNUAL', 'is_leave_balance_deducted' => true,
+        ]);
+
+        // Tidak ada LeaveBalance sama sekali untuk pegawai ini.
+        $start = $this->tanggalKerja();
+        $end = $start->copy()->addDay();
+
+        // HRD langsung ajukan + setujui
+        $leave = LeaveRequest::create([
+            'employee_id' => $pegawai->employee_id,
+            'leave_type_id' => $annual->id,
+            'start_date' => $start->toDateString(),
+            'end_date' => $end->toDateString(),
+            'total_days' => 2,
+            'status' => 'Disetujui Atasan Langsung', // Assume supervisor sudah setujui
+            'created_by' => $pegawai->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($hrd)->postJson("/api/leaves/{$leave->id}/approve")->assertOk();
+
+        // Saldo harus otomatis dibuat!
+        $this->assertDatabaseHas('leave_balances', [
+            'employee_id' => $pegawai->employee_id,
+            'leave_type_id' => $annual->id,
+            'period_year' => date('Y'),
+            'entitled_days' => 12.0, // DEFAULT_ENTITLED_DAYS
+        ]);
+
+        // LeaveRequest status harus 'Disetujui HRD'
+        $this->assertSame('Disetujui HRD', $leave->fresh()->status);
     }
 
     public function test_pegawai_baru_izin_tidak_memerlukan_saldo(): void

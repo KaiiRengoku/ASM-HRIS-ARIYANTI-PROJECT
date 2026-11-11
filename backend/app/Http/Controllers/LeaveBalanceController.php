@@ -191,9 +191,11 @@ class LeaveBalanceController extends Controller
             $created = [];
             $skipped = [];
             foreach ($employees as $employee) {
+                // lockForUpdate: cegah race condition bila accrue dijalankan paralel
                 $exists = LeaveBalance::where('employee_id', $employee->id)
                     ->where('leave_type_id', $annual->id)
                     ->where('period_year', $year)
+                    ->lockForUpdate()
                     ->exists();
                 if ($exists) {
                     $skipped[] = $employee->id;

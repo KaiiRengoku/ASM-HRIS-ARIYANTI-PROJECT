@@ -196,8 +196,12 @@ class LeaveController extends Controller
         if (!$tahap) {
             return false;
         }
-        // Tidak boleh menyetujui/menolak pengajuan sendiri (termasuk HRD).
-        if ((int) $leave->employee_id === (int) $request->user()->employee_id) {
+        // Tidak boleh menyetujui/menolak pengajuan sendiri — kecuali HRD, yang
+        // selalu menjadi tahap terakhir (TAHAP_HRD); tanpa pengecualian ini
+        // pengajuan cuti HRD sendiri macet selamanya karena tidak ada atasan di
+        // atasnya. Role lain tetap tidak boleh memproses pengajuan sendiri.
+        if ((int) $leave->employee_id === (int) $request->user()->employee_id
+            && $this->roleUtama($request->user()) !== 'HRD') {
             return false;
         }
         // Tahap yang diminta harus sama dengan tahap yang sedang menunggu.
@@ -430,7 +434,7 @@ class LeaveController extends Controller
             return response()->json(['success' => false, 'message' => 'Rentang tanggal tumpang tindih dengan pengajuan cuti/izin lain yang masih aktif.'], 400);
         }
 
-        // Saldo cuti tidak lagi memblokir pengajuan. Perhitungan/pemotongan
+        // Saldo cuti tidak memblokir pengajuan. Perhitungan/pemotongan
         // diserahkan ke HRD secara manual (lihat leave-balances/adjust).
 
         $leave = LeaveRequest::create([
@@ -438,7 +442,7 @@ class LeaveController extends Controller
             'leave_type_id' => $request->leave_type_id,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
-            'total_days' => $totalDays,
+            'total_days' => (int) $totalDays,
             'reason' => $request->reason,
             'status' => 'Pending',
             'submitted_at' => now(),
@@ -629,8 +633,28 @@ class LeaveController extends Controller
                         ->lockForUpdate()
                         ->first();
                     if (!$balance) {
-                        // Jangan finalkan cuti tanpa memotong saldo. Batalkan transaksi.
-                        throw new \RuntimeException("Saldo cuti tahun {$periodYear} belum dibuat. Buat saldo lebih dulu lewat menu Saldo Cuti.");
+                        // Auto-create saldo cuti tahun baru untuk pegawai (cuti baru atau pegawai baru).
+                        $entitledDays = LeaveCalculationService::entitledDays($leave->employee, $periodYear);
+                        $balance = LeaveBalance::create([
+                            'employee_id' => $leave->employee_id,
+                            'leave_type_id' => $leave->leave_type_id,
+                            'period_year' => $periodYear,
+                            'entitled_days' => $entitledDays,
+                            'adjustment_days' => 0,
+                            'used_days' => 0,
+                            'remaining_days' => $entitledDays,
+                        ]);
+                        LeaveBalanceTransaction::create([
+                            'leave_balance_id' => $balance->id,
+                            'employee_id' => $leave->employee_id,
+                            'leave_request_id' => $leave->id,
+                            'transaction_type' => 'ACCRUAL',
+                            'amount' => $entitledDays,
+                            'balance_before' => 0,
+                            'balance_after' => $entitledDays,
+                            'reason' => 'Auto-create saldo untuk finalisasi cuti',
+                            'created_by' => $user->id,
+                        ]);
                     }
 
                     $balanceBefore = $balance->remaining_days;
@@ -785,15 +809,18 @@ class LeaveController extends Controller
                     $balance = LeaveBalance::whereKey($deduct->leave_balance_id)->lockForUpdate()->first();
                     if ($balance) {
                         $before = $balance->remaining_days;
-                        $balance->used_days = max(0, $balance->used_days - $leave->total_days);
-                        $balance->remaining_days = $balance->entitled_days + $balance->adjustment_days - $balance->used_days;
+                        // Gunakan amount dari DEDUCT transaction (absolut), bukan leave->total_days
+                        // karena leave->total_days bisa berubah sejak saat approval
+                        $deductAmount = abs($deduct->amount);
+                        $balance->used_days = max(0, $balance->used_days - $deductAmount);
+                        $balance->remaining_days = max(0, $balance->entitled_days + $balance->adjustment_days - $balance->used_days);
                         $balance->save();
                         LeaveBalanceTransaction::create([
                             'leave_balance_id' => $balance->id,
                             'employee_id' => $leave->employee_id,
                             'leave_request_id' => $leave->id,
                             'transaction_type' => 'REVERSAL',
-                            'amount' => $leave->total_days,
+                            'amount' => $deductAmount,
                             'balance_before' => $before,
                             'balance_after' => $balance->remaining_days,
                             'reason' => 'Pembatalan cuti oleh ' . ($request->user()->name ?? 'HRD'),

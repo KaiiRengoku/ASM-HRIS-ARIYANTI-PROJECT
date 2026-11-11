@@ -76,17 +76,20 @@ class LeaveTypeSeeder extends Seeder
         ];
 
         foreach ($leaveTypes as $type) {
-            DB::table('leave_types')->insert([
-                'code' => $type['code'],
-                'name' => $type['name'],
-                'is_leave_balance_deducted' => $type['is_leave_balance_deducted'],
-                'requires_attachment' => $type['requires_attachment'],
-                'requires_medical_certificate' => $type['requires_medical_certificate'],
-                'is_active' => $type['is_active'],
-                'description' => $type['description'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Check dulu apakah sudah ada sebelum insert - mencegah error duplicate key
+            if (!DB::table('leave_types')->where('code', $type['code'])->exists()) {
+                DB::table('leave_types')->insert([
+                    'code' => $type['code'],
+                    'name' => $type['name'],
+                    'is_leave_balance_deducted' => $type['is_leave_balance_deducted'],
+                    'requires_attachment' => $type['requires_attachment'],
+                    'requires_medical_certificate' => $type['requires_medical_certificate'],
+                    'is_active' => $type['is_active'],
+                    'description' => $type['description'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
     }
 }
