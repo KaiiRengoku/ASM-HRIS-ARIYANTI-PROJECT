@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\EmployeeDocument;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Storage;
 
 class ReportController extends Controller
 {
@@ -26,10 +28,26 @@ class ReportController extends Controller
     }
 
     // Daftar pegawai untuk ekspor. KABAG (bila diberi izin ekspor) tetap dibatasi unitnya.
+    // Tanpa filter: ekspor selalu memuat seluruh pegawai (aktif & nonaktif).
     private function employeesQuery(Request $request)
     {
         return Employee::with(['position', 'organizationalUnit'])
             ->when($this->kabagUnitId($request), fn ($q, $unitId) => $q->where('organizational_unit_id', $unitId));
+    }
+
+    // Hitung durasi masa kerja (tahun) dari tanggal_masuk_kerja.
+    private function durasiMasaKerja(?string $tanggalMasuk): string
+    {
+        if (!$tanggalMasuk) {
+            return '';
+        }
+        try {
+            $masuk = \Carbon\Carbon::parse($tanggalMasuk);
+            $tahun = now()->diffInYears($masuk, false);
+            return $tahun > 0 ? (int) $tahun . ' tahun' : '< 1 tahun';
+        } catch (\Exception) {
+            return '';
+        }
     }
 
 public function exportEmployees(Request $request)
@@ -37,17 +55,19 @@ public function exportEmployees(Request $request)
     $employees = $this->employeesQuery($request)->get();
 
     $fh = fopen('php://temp', 'r+');
-    fputcsv($fh, ['Nomor Induk Kepegawaian', 'Nama', 'Email', 'Jabatan', 'Unit', 'Status', 'Telepon', 'Tanggal Masuk']);
+    fputcsv($fh, ['Nomor Induk Kepegawaian', 'Nama', 'Email', 'Jabatan', 'Jabatan Utama', 'Unit', 'Status', 'Telepon', 'Tanggal Masuk', 'Lama Kerja']);
     foreach ($employees as $emp) {
         fputcsv($fh, [
             $emp->nik,
             $emp->nama_lengkap,
             $emp->email,
             $emp->position?->name ?? '',
+            $emp->jabatan_utama ?? '',
             $emp->organizationalUnit?->name ?? '',
             $emp->status_kepegawaian ?? '',
             $emp->nomor_hp ?? '',
             $emp->tanggal_masuk_kerja ?? '',
+            $this->durasiMasaKerja($emp->tanggal_masuk_kerja?->format('Y-m-d')),
         ]);
     }
     rewind($fh);
@@ -186,9 +206,9 @@ private function leaveQuery(Request $request)
     $employees = $this->employeesQuery($request)->get();
     $rows = '';
     foreach ($employees as $emp) {
-        $rows .= '<tr><td>' . e($emp->nik) . '</td><td>' . e($emp->nama_lengkap) . '</td><td>' . e($emp->email) . '</td><td>' . e($emp->position?->name ?? '') . '</td><td>' . e($emp->organizationalUnit?->name ?? '') . '</td><td>' . e($emp->status_kepegawaian ?? '') . '</td><td>' . e($emp->nomor_hp ?? '') . '</td><td>' . e($emp->tanggal_masuk_kerja ?? '') . '</td></tr>';
+        $rows .= '<tr><td>' . e($emp->nik) . '</td><td>' . e($emp->nama_lengkap) . '</td><td>' . e($emp->email) . '</td><td>' . e($emp->position?->name ?? '') . '</td><td>' . e($emp->jabatan_utama ?? '') . '</td><td>' . e($emp->organizationalUnit?->name ?? '') . '</td><td>' . e($emp->status_kepegawaian ?? '') . '</td><td>' . e($emp->nomor_hp ?? '') . '</td><td>' . e($emp->tanggal_masuk_kerja ?? '') . '</td><td>' . e($this->durasiMasaKerja($emp->tanggal_masuk_kerja?->format('Y-m-d'))) . '</td></tr>';
     }
-    $html = '<table border="1"><tr><th>Nomor Induk Kepegawaian</th><th>Nama</th><th>Email</th><th>Jabatan</th><th>Unit</th><th>Status</th><th>Telepon</th><th>Tanggal Masuk</th></tr>' . $rows . '</table>';
+    $html = '<table border="1"><tr><th>Nomor Induk Kepegawaian</th><th>Nama</th><th>Email</th><th>Jabatan</th><th>Jabatan Utama</th><th>Unit</th><th>Status</th><th>Telepon</th><th>Tanggal Masuk</th><th>Lama Kerja</th></tr>' . $rows . '</table>';
     $this->audit($request, 'reports/employees/excel', Employee::class, 0);
     return Response::make($html, 200, [
         'Content-Type' => 'application/vnd.ms-excel',
@@ -227,7 +247,8 @@ public function exportBiodataPdf(Request $request, $id)
     $employee = Employee::with(['position', 'organizationalUnit', 'educations', 'functional', 'teachingAssignments', 'positionHistories', 'user.roles'])->findOrFail($id);
     $isDosen = (bool) $employee->is_dosen;
     $isPegawai = $isDosen || collect($employee->user?->roles)->contains(fn ($r) => in_array(($r['code'] ?? $r), ['PEGAWAI', 'DOSEN'], true));
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.biodata', compact('employee', 'isDosen', 'isPegawai'));
+    $fotoUrl = $this->biodataFotoUrl($employee);
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.biodata', compact('employee', 'isDosen', 'isPegawai', 'fotoUrl'));
     $this->audit($request, 'reports/biodata-pdf/' . $id, Employee::class, (int) $id);
     return $pdf->download('biodata_' . $employee->nik . '.pdf');
 }
@@ -240,7 +261,8 @@ public function exportBiodataWord(Request $request, $id)
     $employee = Employee::with(['position', 'organizationalUnit', 'educations', 'functional', 'teachingAssignments', 'positionHistories', 'user.roles'])->findOrFail($id);
     $isDosen = (bool) $employee->is_dosen;
     $isPegawai = $isDosen || collect($employee->user?->roles)->contains(fn ($r) => in_array(($r['code'] ?? $r), ['PEGAWAI', 'DOSEN'], true));
-    $html = view('pdf.biodata', compact('employee', 'isDosen', 'isPegawai'))->render();
+    $fotoUrl = $this->biodataFotoUrl($employee);
+    $html = view('pdf.biodata', compact('employee', 'isDosen', 'isPegawai', 'fotoUrl'))->render();
     $filename = 'biodata_' . $employee->nik . '.doc';
     $this->audit($request, 'reports/biodata-word/' . $id, Employee::class, (int) $id);
     return Response::make($html, 200, [
@@ -249,12 +271,64 @@ public function exportBiodataWord(Request $request, $id)
     ]);
 }
 
+// Ambil URL base64 foto terbaru (dokumen tipe "Foto") milik pegawai.
+private function biodataFotoUrl(Employee $employee): ?string
+{
+    $foto = $employee->documents()
+        ->where('document_type', 'Foto')
+        ->orderByDesc('id')
+        ->first();
+    if (!$foto) {
+        return null;
+    }
+    return self::fotoToBase64($foto->storage_disk, $foto->storage_path);
+}
+
 public function exportEmployeesPdf(Request $request)
 {
     $employees = $this->employeesQuery($request)->get();
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.employees', compact('employees'));
+
+    // Ambil data foto + dokumen untuk tiap pegawai.
+    $photos = [];
+    $employeeDocs = EmployeeDocument::whereIn('employee_id', $employees->pluck('id'))
+        ->where('document_type', 'Foto')
+        ->orderBy('id')
+        ->get()
+        ->groupBy('employee_id');
+    foreach ($employees as $emp) {
+        $docs = $employeeDocs->get($emp->id, collect());
+        $photos[$emp->id] = $docs->isNotEmpty() ? [
+            'storage_disk' => $docs->first()->storage_disk,
+            'storage_path' => $docs->first()->storage_path,
+        ] : null;
+    }
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.employees', [
+        'employees' => $employees,
+        'photos' => $photos,
+        'controller' => $this,
+    ]);
     $this->audit($request, 'reports/employees/pdf', Employee::class, 0);
     return $pdf->download('pegawai_' . date('Y-m-d') . '.pdf');
+}
+
+// Baca gambar foto dari storage, kembalikan sebagai data-URI base64 agar bisa
+// di-embed ke PDF (DomPDF tak bisa akses file lokal relatif). Dipanggil dari view Blade.
+public function fotoToBase64(?string $disk, ?string $path): ?string
+{
+    if (!$disk || !$path) {
+        return null;
+    }
+    try {
+        $contents = Storage::disk($disk)->get($path);
+        if (!$contents) {
+            return null;
+        }
+        $mime = str_contains($path, '.png') ? 'image/png' : 'image/jpeg';
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    } catch (\Exception) {
+        return null;
+    }
 }
 
 public function exportLeavesPdf(Request $request)

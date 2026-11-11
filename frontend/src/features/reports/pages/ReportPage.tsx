@@ -122,9 +122,11 @@ const downloadBlob = async (url: string, filename: string) => {
                 <CardHeader>
                     <CardTitle>Ekspor Data Pegawai</CardTitle>
                 </CardHeader>
-                <CardContent className="flex gap-2">
-                    <Button onClick={exportEmployees}>CSV</Button>
-                    <Button variant="outline" onClick={() => downloadBlob('/reports/employees/pdf', `pegawai_${new Date().toISOString().slice(0,10)}.pdf`)}>PDF</Button>
+                <CardContent className="space-y-4">
+                    <div className="flex gap-2">
+                        <Button onClick={exportEmployees}>CSV</Button>
+                        <Button variant="outline" onClick={() => downloadBlob('/reports/employees/pdf', `pegawai_${new Date().toISOString().slice(0,10)}.pdf`)}>PDF</Button>
+                    </div>
                 </CardContent>
             </Card>
             )}

@@ -72,6 +72,20 @@ test('ekspor laporan dijaga izin employee.export dan leave.export', () => {
     assert.ok(reports.includes('{canExportLeaves &&'), 'blok ekspor cuti tidak dijaga');
 });
 
+// Permintaan user: kartu "Ekspor Data Pegawai" tidak lagi punya kolom search
+// (Jabatan Utama) maupun dropdown Status Kepegawaian. Ekspor selalu semua pegawai.
+test('kartu ekspor pegawai tidak punya filter jabatan utama / status kepegawaian', () => {
+    const kartu = reports.slice(
+        reports.indexOf('Ekspor Data Pegawai'),
+        reports.indexOf('Ekspor Data Cuti'),
+    );
+    assert.ok(kartu.length > 0, 'kartu Ekspor Data Pegawai tidak ditemukan');
+    assert.ok(!kartu.includes('Jabatan Utama'), 'filter Jabatan Utama masih ada di ekspor pegawai');
+    assert.ok(!kartu.includes('Status Kepegawaian'), 'filter Status Kepegawaian masih ada di ekspor pegawai');
+    assert.ok(!kartu.includes('status_kepegawaian'), 'param status_kepegawaian masih dikirim dari ekspor pegawai');
+    assert.ok(!kartu.includes('jabatan_utama'), 'param jabatan_utama masih dikirim dari ekspor pegawai');
+});
+
 test('rekap sisa cuti hanya untuk role berwenang dengan izin leave.view', () => {
     assert.ok(reports.includes("hasPermission('leave.view')"), 'cek leave.view hilang');
     assert.ok(
