@@ -87,10 +87,14 @@ public function forgotPassword(ForgotPasswordRequest $request)
 
     public function resetPassword(ResetPasswordRequest $request)
     {
+        $user = null;
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user, $password) {
-                $user->forceFill([
+            function ($userInstance, $password) use (&$user) {
+                // Revoke semua token lama untuk keamanan - forceFill untuk bypass encrypt ulang
+                $userInstance->tokens()->delete();
+                $user = $userInstance;
+                $userInstance->forceFill([
                     'password' => bcrypt($password),
                 ])->save();
             }
@@ -101,6 +105,18 @@ public function forgotPassword(ForgotPasswordRequest $request)
                 'success' => false,
                 'message' => 'Gagal reset password. Token mungkin kadaluarsa atau email tidak valid.',
             ], 400);
+        }
+
+        if ($user) {
+            AuditLog::create([
+                'user_id' => $user->id,
+                'action' => 'RESET_PASSWORD',
+                'auditable_type' => User::class,
+                'auditable_id' => $user->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+            ]);
         }
 
         return response()->json([
