@@ -11,19 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { extractErrorMessage } from '@/services/apiError';
 
 const fetchApprovals = async () => {
-    // Antrean "menunggu persetujuan saya". Parameter `level` diisi nilai
-    // non-kosong & bukan 'all' agar backend (LeaveController::index, blok
-    // `if ($request->has('level') ...)`) menghitung status MENUNGGU yang sesuai
-    // tahap pelaku: atasan langsung/Kabag/Direktur → 'Pending'; HRD → 'Pending' +
-    // 'Disetujui Atasan Langsung' + 'Disetujui Kepala Bagian' + 'Disetujui
-    // Direktur'. Data yang sudah tuntas ('Disetujui HRD') TIDAK ikut tampil di
-    // sini — agar tidak duplikat dengan halaman Cuti/Izin.
     const res = await api.get('/leaves', { params: { level: 'queue' } });
     return res.data.data;
 };
 
 const approveLeave = async ({ id }: { id: number }) => {
-    // Server yang menentukan tahap; klien tidak perlu mengirim level.
     const res = await api.post(`/leaves/${id}/approve`);
     return res.data;
 };
@@ -49,6 +41,7 @@ export default function ApprovalPage() {
         enabled: !!role,
     });
 
+    // Auto-refresh setelah approval/reject success
     const approveMutation = useMutation({
         mutationFn: approveLeave,
         onSuccess: () => {
@@ -56,9 +49,18 @@ export default function ApprovalPage() {
             queryClient.invalidateQueries({ queryKey: ['leaves'] });
             queryClient.invalidateQueries({ queryKey: ['leave-balances'] });
             queryClient.invalidateQueries({ queryKey: ['notifications-latest'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             toast({ title: 'Berhasil', description: 'Pengajuan disetujui.' });
         },
-        onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e), variant: 'destructive' }),
+        onError: (e: unknown) => {
+            toast({
+                title: 'Gagal',
+                description: extractErrorMessage(e, 'Gagal menyetujui pengajuan. Coba lagi.'),
+                variant: 'destructive'
+            });
+            // Refresh juga saat error agar data tidak stale
+            queryClient.invalidateQueries({ queryKey: ['approvals'] });
+        },
     });
 
     const rejectMutation = useMutation({
@@ -68,27 +70,42 @@ export default function ApprovalPage() {
             queryClient.invalidateQueries({ queryKey: ['leaves'] });
             queryClient.invalidateQueries({ queryKey: ['leave-balances'] });
             queryClient.invalidateQueries({ queryKey: ['notifications-latest'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             toast({ title: 'Berhasil', description: 'Pengajuan ditolak.' });
             setOpenReject(false);
             setRejectReason('');
         },
-        onError: (e: unknown) => toast({ title: 'Gagal', description: extractErrorMessage(e), variant: 'destructive' }),
+        onError: (e: unknown) => {
+            toast({
+                title: 'Gagal',
+                description: extractErrorMessage(e, 'Gagal menolak pengajuan. Coba lagi.'),
+                variant: 'destructive'
+            });
+            queryClient.invalidateQueries({ queryKey: ['approvals'] });
+        },
     });
 
     const handleApprove = (id: number) => {
+        if (approveMutation.isPending) return;
         approveMutation.mutate({ id });
     };
 
     const handleReject = () => {
-        if (!selectedId || !rejectReason.trim()) {
-            toast({ title: 'Gagal', description: 'Alasan penolakan wajib diisi.', variant: 'destructive' });
+        if (!selectedId || !rejectReason.trim() || rejectMutation.isPending) {
+            toast({
+                title: 'Gagal',
+                description: rejectMutation.isPending
+                    ? 'Sedang memproses...'
+                    : 'Alasan penolakan wajib diisi.',
+                variant: 'destructive'
+            });
             return;
         }
         rejectMutation.mutate({ id: selectedId, reason: rejectReason });
     };
 
     if (isLoading) return <div className="p-6">Memuat pengajuan...</div>;
-    if (error) return <div className="p-6 text-destructive">Gagal memuat data.</div>;
+    if (error) return <div className="p-6 text-destructive">Gagal memuat data. Coba refresh.</div>;
 
     const list = approvals || [];
 
@@ -105,7 +122,6 @@ export default function ApprovalPage() {
 
             <Card>
                 <CardContent className="p-0">
-                    {/* Mobile: kartu per pengajuan — tabel 6 kolom tak muat di layar sempit. */}
                     <div className="divide-y md:hidden">
                         {list.length === 0 ? (
                             <p className="py-8 text-center text-sm text-muted-foreground">Tidak ada pengajuan menunggu approval</p>
@@ -123,10 +139,23 @@ export default function ApprovalPage() {
                                     </dl>
                                     <div className="flex flex-wrap gap-2">
                                         {canApprove && (
-                                            <Button size="sm" onClick={() => handleApprove(item.id)} disabled={approveMutation.isPending}>Setujui</Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleApprove(item.id)}
+                                                disabled={approveMutation.isPending}
+                                            >
+                                                {approveMutation.isPending ? 'Mengunggah...' : 'Setujui'}
+                                            </Button>
                                         )}
                                         {canReject && (
-                                            <Button variant="destructive" size="sm" onClick={() => { setSelectedId(item.id); setOpenReject(true); }} disabled={rejectMutation.isPending}>Tolak</Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() => { setSelectedId(item.id); setOpenReject(true); }}
+                                                disabled={rejectMutation.isPending}
+                                            >
+                                                {rejectMutation.isPending ? 'Prosess...' : 'Tolak'}
+                                            </Button>
                                         )}
                                     </div>
                                 </div>
@@ -166,7 +195,7 @@ export default function ApprovalPage() {
                                                 onClick={() => handleApprove(item.id)}
                                                 disabled={approveMutation.isPending}
                                             >
-                                                Setujui
+                                                {approveMutation.isPending ? 'Mengunggah...' : 'Setujui'}
                                             </Button>
                                             )}
                                             {canReject && (
@@ -176,7 +205,7 @@ export default function ApprovalPage() {
                                                 onClick={() => { setSelectedId(item.id); setOpenReject(true); }}
                                                 disabled={rejectMutation.isPending}
                                             >
-                                                Tolak
+                                                {rejectMutation.isPending ? 'Mengunggah...' : 'Tolak'}
                                             </Button>
                                             )}
                                             </div>
@@ -202,7 +231,10 @@ export default function ApprovalPage() {
                             onChange={(e) => setRejectReason(e.target.value)}
                         />
                         <div className="flex gap-2">
-                            <Button onClick={handleReject} disabled={rejectMutation.isPending}>
+                            <Button
+                                onClick={handleReject}
+                                disabled={rejectMutation.isPending || !rejectReason.trim()}
+                            >
                                 {rejectMutation.isPending ? 'Mengirim...' : 'Kirim'}
                             </Button>
                             <Button variant="outline" onClick={() => setOpenReject(false)}>Batal</Button>
