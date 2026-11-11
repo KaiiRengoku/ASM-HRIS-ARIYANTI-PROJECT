@@ -82,9 +82,11 @@ class EmployeeDestroyGuardTest extends TestCase
             'created_by' => $this->hrdUser->id,
         ]);
 
+        // Test: pegawai ber-riwayat → di-archive (bukan dihapus)
         $this->actingAs($this->hrdUser)->deleteJson("/api/employees/{$target->id}")
-            ->assertStatus(422)->assertJsonPath('success', false);
+            ->assertStatus(400)->assertJsonPath('success', false);
 
-        $this->assertDatabaseHas('employees', ['id' => $target->id]);
+        // Pegawai tetap ada di database (archive, bukan delete)
+        $this->assertDatabaseHas('employees', ['id' => $target->id, 'status_kepegawaian' => 'nonaktif']);
     }
 }

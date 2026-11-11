@@ -129,6 +129,31 @@ class EmployeeController extends Controller
     public function destroy(Request $request, Employee $employee)
     {
         $employee->loadMissing('user');
+
+        // Cek dulu apakah pegawai ini punya riwayat (cuti/saldo/dokumen).
+        // Kalau ada, jangan hapus — nonaktifkan saja (archive).
+        $hasHistory = $employee->leaveRequests()->exists()
+            || $employee->leaveBalances()->exists()
+            || $employee->documents()->exists();
+
+        if ($hasHistory) {
+            // Archive: nonaktifkan pegawai + user, tapi simpan semua data
+            $employee->status_kepegawaian = 'nonaktif';
+            $employee->save();
+
+            if ($employee->user) {
+                $employee->user->roles()->detach();
+                $employee->user->delete();
+            }
+
+            \Illuminate\Support\Facades\Log::warning("Pegawai {$employee->nik} di-archive karena punya riwayat. Data tidak dihapus.");
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Pegawai di-archive (ditiadakan), tidak dihapus. Data riwayat disimpan untuk compliance.',
+            ], 400);
+        }
+
         try {
             DB::transaction(function () use ($employee) {
                 if ($employee->user) {
@@ -138,8 +163,6 @@ class EmployeeController extends Controller
                 $employee->delete();
             });
         } catch (QueryException $e) {
-            // FK RESTRICT: pegawai masih dipakai riwayat cuti/saldo/dokumen.
-            // Nonaktifkan, jangan hapus — riwayat wajib disimpan HRIS.
             if ($e->getCode() === '23000') {
                 return response()->json([
                     'success' => false,
