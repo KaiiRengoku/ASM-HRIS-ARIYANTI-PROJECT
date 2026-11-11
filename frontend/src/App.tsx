@@ -1,6 +1,6 @@
 import { RouterProvider } from "react-router-dom";
+import { Toaster } from "sonner";
 import { router } from "@/routes/router";
-import { Toaster } from "@/components/ui/toaster";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { useNotifications } from "@/hooks/useNotifications";
 
@@ -11,7 +11,13 @@ function App() {
   return (
     <>
       <RouterProvider router={router} />
-      <Toaster />
+      <Toaster
+        position="top-center"
+        richColors
+        closeButton
+        offset={16}
+        toastOptions={{ classNames: { toast: "rounded-lg shadow-lg text-sm" } }}
+      />
     </>
   );
 }
