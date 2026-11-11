@@ -42,6 +42,7 @@ class ProfileController extends Controller
         $validated = $request->validate([
             // Data identitas (dapat diedit pemilik akun untuk dirinya sendiri).
             'nama_lengkap' => 'nullable|string|max:150',
+            'jabatan_utama' => 'nullable|string|max:50',
             'nip' => 'nullable|string|size:9|regex:/^[0-9]{9}$/|unique:employees,nip,' . $employee->id,
             'nidn' => 'nullable|string|size:10|regex:/^[0-9]{10}$/|unique:employees,nidn,' . $employee->id,
             'tempat_lahir' => 'nullable|string|max:100',
@@ -57,7 +58,6 @@ class ProfileController extends Controller
         ]);
 
         $employee->update(Arr::except($validated, ['riwayat_penelitian_pengabdian']));
-
         $employee->loadMissing('position');
         if ($request->filled('riwayat_penelitian_pengabdian') && $this->isDosen($user)) {
             $employee->functional()->updateOrCreate(

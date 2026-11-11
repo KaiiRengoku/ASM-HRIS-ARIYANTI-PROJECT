@@ -21,6 +21,7 @@ class UpdateEmployeeRequest extends FormRequest
         return [
             'organizational_unit_id' => ['nullable', 'exists:organizational_units,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
+            'jabatan_utama' => ['nullable', 'string', 'max:50'],
             // Atasan langsung tidak boleh diri sendiri (mencegah alur approval menggantung).
             'supervisor_id' => ['nullable', 'exists:employees,id', Rule::notIn([$id])],
             'nik' => ['required', 'string', 'size:9', 'regex:/^[0-9]{9}$/', Rule::unique('employees', 'nik')->ignore($id), Rule::unique('users', 'nik')->ignore($userId)],

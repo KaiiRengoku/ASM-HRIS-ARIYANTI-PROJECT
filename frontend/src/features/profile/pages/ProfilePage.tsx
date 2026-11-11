@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
+import PhotoUploadField from '@/components/photo-upload-field';
 
 interface Employee {
     id: number;
@@ -233,6 +234,7 @@ export default function ProfilePage() {
             return res.data.data as ProfileData;
         },
     });
+    const [jabatanUtama, setJabatanUtama] = useState('');
 
     const { data: education } = useQuery({
         queryKey: ['profile-education'],
@@ -364,6 +366,8 @@ export default function ProfilePage() {
                 jenis_kelamin: data.jenis_kelamin || null,
                 agama: data.agama || null,
                 status_pernikahan: data.status_pernikahan || null,
+                // Jabatan utama: opsional, hanya diisi oleh orang yang merangkap.
+                jabatan_utama: jabatanUtama || null,
             });
             toast({ title: 'Berhasil', description: 'Data identitas diperbarui.' });
             queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -459,7 +463,7 @@ export default function ProfilePage() {
                     <TabsTrigger value="pribadi">Data Pribadi</TabsTrigger>
                     <TabsTrigger value="pendidikan">Pendidikan</TabsTrigger>
                     <TabsTrigger value="sertifikasi">Sertifikasi & Pelatihan</TabsTrigger>
-                    <TabsTrigger value="fungsional">Pangkat & Fungsional</TabsTrigger>
+                    {isDosen && <TabsTrigger value="fungsional">Pangkat & Fungsional</TabsTrigger>}
                     {isDosen && <TabsTrigger value="matkul">Mata Kuliah</TabsTrigger>}
                     <TabsTrigger value="jabatan">Riwayat Jabatan</TabsTrigger>
                     {isDosen && <TabsTrigger value="penelitian">Penelitian & Pernyataan</TabsTrigger>}
@@ -474,8 +478,21 @@ export default function ProfilePage() {
                             <p><span className="font-medium">Nomor Induk Kepegawaian:</span> {profile.nik}</p>
                             <p><span className="font-medium">Nama:</span> {profile.name}</p>
                             <p><span className="font-medium">Email:</span> {profile.email}</p>
-                            <p><span className="font-medium">Role:</span> {profile.roles?.[0]?.name || '-'}</p>
+                            <p><span className="font-medium">Role:</span> {profile.roles?.map((r) => r.name).join(', ') || '-'}</p>
                             <p><span className="font-medium">Jabatan:</span> {employee?.position?.name || '-'}</p>
+                            {editing && (
+                                <div className="space-y-2 pt-2">
+                                    <Label>Jabatan Utama (untuk orang merangkap)</Label>
+                                    <Input
+                                        value={jabatanUtama}
+                                        onChange={(e) => setJabatanUtama(e.target.value)}
+                                        placeholder="mis. DOSEN, KABAG, DIREKTUR — kosongkan bila tidak merangkap"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Bila diisi, orang ini masuk di laporan berdasar jabatan utama ini, bukan jabatan resminya.
+                                    </p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -557,6 +574,12 @@ export default function ProfilePage() {
                             <CardTitle>Data Kontak</CardTitle>
                         </CardHeader>
                         <CardContent>
+                            {editing && employee && (
+                                <div className="mb-4">
+                                    <p className="mb-2 text-sm font-medium">Foto</p>
+                                    <PhotoUploadField employeeId={employee.id} />
+                                </div>
+                            )}
                             {editing ? (
                                 <form onSubmit={kontakForm.handleSubmit(onKontak)} className="space-y-4">
                                     <div>
@@ -799,6 +822,7 @@ export default function ProfilePage() {
                 </TabsContent>
 
 
+                {isDosen && (
                 <TabsContent value="fungsional">
                     <Card>
                         <CardHeader>
@@ -944,6 +968,7 @@ export default function ProfilePage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                )}
 
                 <TabsContent value="jabatan">
                     <Card>

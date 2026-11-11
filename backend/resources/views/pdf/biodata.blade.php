@@ -14,9 +14,17 @@
         .label { font-weight: bold; display: inline-block; width: 180px; }
         .ttd { margin-top: 32px; text-align: right; }
         .footer { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 20px; font-size: 12px; color: #666; }
+        .foto { width: 70px; float: right; }
+        .foto img { width: 68px; height: 86px; object-fit: cover; border: 1px solid #ccc; }
+        .foto .no-foto { width: 68px; height: 86px; background: #e5e5e5; display: flex; align-items: center; justify-content: center; color: #999; font-size: 10px; }
     </style>
 </head>
 <body>
+    @if($fotoUrl ?? null)
+    <div class="foto"><img src="{{ $fotoUrl }}" alt="Foto"></div>
+    @else
+    <div class="foto"><div class="no-foto">Tanpa Foto</div></div>
+    @endif
     <h1>Biodata Pegawai</h1>
 
     <h2>A. DATA PRIBADI</h2>
@@ -57,8 +65,9 @@
         <div class="row"><span class="label">Pangkat / Golongan</span> {{ $employee->functional?->pangkat ?? '-' }} / {{ $employee->functional?->golongan_ruang ?? '-' }}</div>
         <div class="row"><span class="label">TMT Pangkat</span> {{ $employee->functional?->tmt_pangkat ?? '-' }}</div>
         <div class="row"><span class="label">Unit Kerja</span> {{ $employee->functional?->unit_kerja ?? $employee->organizationalUnit?->name ?? '-' }}</div>
-        <div class="row"><span class="label">Jabatan</span> {{ $employee->position?->name ?? '-' }}</div>
+        <div class="row"><span class="label">Jabatan</span> {{ $employee->position?->name ?? '-' }}@if($employee->jabatan_utama) (Merangkap: {{ $employee->jabatan_utama }}) @endif</div>
         <div class="row"><span class="label">Tanggal Masuk</span> {{ $employee->tanggal_masuk_kerja ?? '-' }}</div>
+        <div class="row"><span class="label">Lama Kerja</span> @php($tahun = now()->diffInYears($employee->tanggal_masuk_kerja, false)) {{ $tahun > 0 ? $tahun . ' tahun' : '< 1 tahun' }}</div>
     </div>
 
     <h2>C.1 RIWAYAT JABATAN</h2>

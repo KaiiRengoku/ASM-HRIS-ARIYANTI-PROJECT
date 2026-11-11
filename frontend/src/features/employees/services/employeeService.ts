@@ -42,6 +42,7 @@ export interface Employee {
   is_dosen?: boolean;
   nomor_rekening: string | null;
   foto_path: string | null;
+  jabatan_utama?: string | null;
   educations?: { jenjang: string; nama_pt?: string | null; jurusan?: string | null; tahun_masuk?: string | null; tahun_lulus?: string | null }[];
   position_histories?: { id: number; jabatan: string; unit_kerja?: string | null; no_sk?: string | null; start_date?: string | null; end_date?: string | null; keterangan?: string | null }[];
   created_at: string;
@@ -64,6 +65,7 @@ export interface EmployeePayload {
   supervisor_id?: number | null;
   role?: string;
   password?: string;
+  jabatan_utama?: string | null;
 }
 
 

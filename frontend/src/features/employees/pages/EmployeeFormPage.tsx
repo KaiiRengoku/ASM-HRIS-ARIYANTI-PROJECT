@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getEmployee, createEmployee, updateEmployee, type EmployeePayload } from '../services/employeeService';
 import { api } from '@/services/api';
+import PhotoUploadField from '@/components/photo-upload-field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import { groupPositions, HIDDEN_CODES, type Position } from '../utils/positionGroups';
@@ -20,6 +21,7 @@ import type { Role } from '@/types';
 const employeeSchema = z.object({
   nik: z.string().regex(/^[0-9]{9}$/, 'Nomor Induk Kepegawaian harus 9 digit angka'),
   nama_lengkap: z.string().min(1, 'Nama wajib diisi'),
+  jabatan_utama: z.string().max(50).optional(),
   gelar_depan: z.string().max(50).optional(),
   gelar_belakang: z.string().max(50).optional(),
   tempat_lahir: z.string().max(100).optional(),
@@ -59,7 +61,7 @@ export default function EmployeeFormPage() {
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EmployeeForm>({
     resolver: zodResolver(employeeSchema),
-    defaultValues: { role: 'PEGAWAI', position_id: '', supervisor_id: '', is_dosen: false },
+    defaultValues: { role: 'PEGAWAI', position_id: '', supervisor_id: '', is_dosen: false, jabatan_utama: '' },
   });
 
   const { data: roles } = useQuery<Role[]>({
@@ -102,6 +104,7 @@ export default function EmployeeFormPage() {
         position_id: existing.position_id ? String(existing.position_id) : '',
         supervisor_id: existing.supervisor_id ? String(existing.supervisor_id) : '',
         is_dosen: !!existing.is_dosen,
+        jabatan_utama: existing.jabatan_utama || '',
       });
     }
   }, [existing]);
@@ -289,6 +292,19 @@ export default function EmployeeFormPage() {
                 <Label>Jabatan</Label>
                 {renderPositionSelect()}
               </div>
+            </div>
+
+            {isEdit && (
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-sm font-medium">Foto Pegawai</p>
+                <PhotoUploadField employeeId={Number(id)} />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="jabatan_utama">Jabatan Utama (untuk orang merangkap)</Label>
+              <Input id="jabatan_utama" {...register('jabatan_utama')} placeholder="mis. DOSEN, KABAG, DIREKTUR — kosongkan bila tidak merangkap" />
+              <p className="text-xs text-muted-foreground">Bila kosong, jabatan resmi di atas dipakai untuk laporan.</p>
             </div>
 
             <div className="space-y-2">

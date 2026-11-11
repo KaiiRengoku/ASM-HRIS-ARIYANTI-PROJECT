@@ -13,6 +13,7 @@ class EmployeeResource extends JsonResource
             'id' => $this->id,
             'organizational_unit_id' => $this->organizational_unit_id,
             'position_id' => $this->position_id,
+            'jabatan_utama' => $this->jabatan_utama,
             'supervisor_id' => $this->supervisor_id,
             'organizational_unit' => $this->whenLoaded('organizationalUnit', fn() => $this->organizationalUnit?->name),
             'position' => $this->whenLoaded('position', fn() => $this->position?->name),
